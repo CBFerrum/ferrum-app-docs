@@ -105,12 +105,26 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  overflow: hidden;
 }
 .docs-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 14px;
+  row-gap: 4px;
   padding: 12px 16px;
+  transition: background-color 0.12s ease;
+}
+.docs-row:hover {
+  background: var(--surface-2);
+}
+.docs-row > :not(.docs-row-icon) {
+  grid-column: 2;
+}
+.docs-row-icon {
+  grid-row: 1 / span 3;
+  margin-top: 1px;
+  color: var(--primary);
 }
 .docs-row + .docs-row {
   border-top: 1px solid var(--border);

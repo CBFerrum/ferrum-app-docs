@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- The family's navigation (Drive, Sheets, Slides, PDF, Docs) has each entry's icon and colour, and
+  each document in the lists has the document icon.
+
 ## 0.2.0
 
 - Docs' own interface (Ferrum docs/plan/apps-ui.md, U4a), out of the web app: `ui/`, at `/docs/`
