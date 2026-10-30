@@ -1,0 +1,25 @@
+- name: DocsTemplate
+  label: Document Template
+  kind: master
+  module: docs
+  title_field: name
+  search_fields: [name, category]
+  description: "What a new document starts from. People pick one in Docs; AI agents run New Document on it. Made from a document, it keeps a copy of that document's content (as Markdown) and where it came from."
+  fields:
+    - {name: name, type: data, required: true, unique: true, in_list: true, max_length: 140}
+    - {name: category, type: select, options: [General, Meetings, Projects, Product, Reports], default: General, required: true, in_list: true, in_filter: true}
+    - {name: description, type: data, max_length: 280, in_list: true, description: "One line in the template gallery"}
+    - {name: content, type: markdown, description: "Markdown: headings, paragraphs, bullet, numbered and task lists, quotes, fenced code, rules, pipe tables; bold, italic, strikethrough, code and links to the web or mail. Empty with a source document: that document's content"}
+    - {name: source_document, type: data, max_length: 36, no_copy: true, description: "A document (its Drive file id) to make this template from, read with your access when the template is created"}
+    - {name: is_active, type: check, label: Active, default: true, in_list: true, in_filter: true, description: "Inactive templates leave the gallery"}
+    - {name: sort_order, type: int, default: 100, min: 0, max: 100000, description: "Lower comes first in the gallery"}
+  list: {columns: [name, category, is_active], sort: sort_order asc}
+  actions:
+    - name: create_document
+      label: New Document
+      permission: read
+      # It changes nothing about the template: no lock on it, so many people start from one at once.
+      read_only: true
+      params:
+        - {name: title, label: Title, description: "The template's name when empty; a taken name gets a number"}
+        - {name: folder, label: Folder, description: "A Drive folder's id (Edit access); your top folder by default"}

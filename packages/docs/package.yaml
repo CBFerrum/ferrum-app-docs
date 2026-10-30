@@ -1,0 +1,196 @@
+package: docs
+version: 0.1.0
+label: Docs
+description: Documents people write together - a home for them, templates to start from, search by what they say, and AI agents that draft and add to them. The documents are Drive's (edited live, shared and versioned there).
+depends: [core, drive]
+
+modules:
+  - name: docs
+    label: Docs
+    icon: file-text
+    order: 46
+    items: [DocsTemplate]
+
+roles:
+  - name: Docs User
+    description: >-
+      Writes documents in Docs: a Drive space of their own (as a Drive User has), the documents shared with them, and the workspace's
+      templates to start from. What they may do with each document is Drive's sharing.
+    permissions:
+      - {entity: DocsTemplate, read: true}
+      - {entity: DriveSpace, read: true, create: true, if_owner: true}
+      - {entity: DriveSettings, read: true}
+  - name: Docs Manager
+    description: Keeps the workspace's document templates, and makes new ones from documents.
+    permissions:
+      - {entity: DocsTemplate, read: true, write: true, create: true, delete: true, export: true}
+
+# Templates every workspace starts with; Docs Managers change, add or retire them (seeding adds
+# only those missing, by name).
+seed:
+  - entity: DocsTemplate
+    key: [name]
+    records:
+      - name: Meeting notes
+        category: Meetings
+        sort_order: 10
+        description: Agenda, notes, decisions and action items
+        content: |
+          # Meeting notes
+
+          **Date:** *when* · **Attendees:** *who*
+
+          ## Agenda
+
+          1. *Topic*
+          2. *Topic*
+
+          ## Notes
+
+          - *What was said*
+
+          ## Decisions
+
+          - *What was decided, and why*
+
+          ## Action items
+
+          - [ ] *Task*, *owner*, by *date*
+      - name: Project brief
+        category: Projects
+        sort_order: 20
+        description: Why, goals, scope, plan, risks and people
+        content: |
+          # Project brief: *name*
+
+          ## Why
+
+          *The problem, and who has it.*
+
+          ## Goals
+
+          - *A result you can measure*
+
+          ## Not doing
+
+          - *What is out of scope*
+
+          ## Plan
+
+          | Milestone | Owner | Due |
+          |---|---|---|
+          | *First result* | *who* | *date* |
+
+          ## Risks
+
+          - *What could go wrong, and what we will do*
+
+          ## People
+
+          - **Decides:** *who*
+          - **Does the work:** *who*
+      - name: Weekly update
+        category: Reports
+        sort_order: 30
+        description: Done, next, blocked, and the numbers that matter
+        content: |
+          # Weekly update: week of *date*
+
+          ## Done
+
+          - *What finished*
+
+          ## Next
+
+          - *What comes next week*
+
+          ## Blocked
+
+          - *What needs help, and from whom*
+
+          ## Numbers
+
+          | Measure | This week | Last week |
+          |---|---|---|
+          | *Measure* |  |  |
+      - name: Decision record
+        category: Projects
+        sort_order: 40
+        description: The context, the options, what was chosen and why
+        content: |
+          # Decision: *title*
+
+          **Status:** Proposed · **Date:** *date* · **Decided by:** *who*
+
+          ## Context
+
+          *What makes a decision necessary now.*
+
+          ## Options
+
+          1. **Option A:** *for and against*
+          2. **Option B:** *for and against*
+
+          ## Decision
+
+          *What we chose, and why.*
+
+          ## Consequences
+
+          - *What changes because of it*
+      - name: Product requirements
+        category: Product
+        sort_order: 50
+        description: The problem, the users, what it must do, and how we know it works
+        content: |
+          # *Feature*: requirements
+
+          ## Problem
+
+          *Who struggles with what today.*
+
+          ## Users
+
+          - *Who uses it, and what they need*
+
+          ## Requirements
+
+          | # | Requirement | Priority |
+          |---|---|---|
+          | 1 | *It lets people…* | Must |
+
+          ## Out of scope
+
+          - *What this does not cover*
+
+          ## How we know it works
+
+          - *A measure of success*
+
+          ## Open questions
+
+          - [ ] *Question*, for *who*
+      - name: One-on-one
+        category: Meetings
+        sort_order: 60
+        description: How things are, topics, feedback both ways, follow-ups
+        content: |
+          # One-on-one: *name* and *name*
+
+          **Date:** *date*
+
+          ## How things are
+
+          *Wins, worries, energy.*
+
+          ## Topics
+
+          - *Topic*
+
+          ## Feedback
+
+          - *Both ways*
+
+          ## Follow-ups
+
+          - [ ] *Task*, *owner*
