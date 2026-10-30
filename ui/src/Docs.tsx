@@ -8,6 +8,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { api, errorMessage, formatDateTime, relativeTime } from "@ferrum/client";
 import { Badge, EmptyState, ErrorState, FamilyNav, Icon, Spinner, Tabs, toast } from "@ferrum/kit";
 import { can, useMetaIndex } from "@ferrum/records";
+import { FileText } from "lucide-react";
 import { docTitle, snippetParts } from "./livedocs";
 import { presenceLabel, useFilesPresence } from "./presence";
 import "./docs.css";
@@ -172,6 +173,7 @@ export function DocsPage() {
               const here = present[d.id] ?? [];
               return (
                 <li key={d.id} className="docs-row">
+                  <FileText aria-hidden size={20} className="docs-row-icon" />
                   <div className="docs-row-main">
                     <Link to={`/d/${d.id}`} state={{ from: "docs" }} className="docs-title">
                       {docTitle(d.name)}
