@@ -1,0 +1,16 @@
+id: docs
+name: Docs
+version: 0.1.0
+publisher: cbferrum
+summary: "Documents people write together: a home for them, templates, search by what they say, and AI agents that draft and add to them"
+description: README.md
+categories: [productivity]
+license: AGPL-3.0-only
+homepage: https://github.com/CBFerrum/ferrum-app-docs
+support: https://github.com/CBFerrum/ferrum-app-docs/issues
+runtime: native
+requires:
+  drive: ">=0.7"
+platform: ">=0.3, <0.4"
+packages: [docs]
+uninstall: ask
