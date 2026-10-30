@@ -1,6 +1,6 @@
 id: docs
 name: Docs
-version: 0.1.0
+version: 0.2.0
 publisher: cbferrum
 summary: "Documents people write together: a home for them, templates, search by what they say, and AI agents that draft and add to them"
 description: README.md
@@ -11,6 +11,22 @@ support: https://github.com/CBFerrum/ferrum-app-docs/issues
 runtime: native
 requires:
   drive: ">=0.7"
-platform: ">=0.3, <0.4"
+# In Drive's family, Workspace (Ferrum docs/plan/apps-ui.md §11.5): Docs has an interface of its
+# own and draws Drive's navigation; it installs with Drive and goes before it.
+parent: drive
+platform: ">=0.3.2, <0.4"
 packages: [docs]
 uninstall: ask
+ui:
+  dist: ui/dist
+contributes:
+  shell.app:
+    - id: docs
+      route: docs
+      title: Docs
+      description: Documents people write together
+      icon: file-text
+      color: "#2f5bea"
+      roles: [Docs User, Docs Manager]
+  shell.create:
+    - {id: document, label: Document, path: docs/new}

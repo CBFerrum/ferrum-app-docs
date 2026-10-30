@@ -1,6 +1,6 @@
 [package]
 name = "ferrum-app-docs"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 license = "AGPL-3.0-only"
 description = "Documents people write together: a home for them, templates, search by what they say, and AI agents that draft and add to them"
@@ -17,6 +17,7 @@ tracing = "0.1"
 uuid = { version = "1.10", features = ["v4", "v7", "serde"] }
 
 [dev-dependencies]
+ferrum-apps = { git = "https://github.com/CBFerrum/Ferrum", branch = "main" }
 ferrum-app-drive = { git = "https://github.com/CBFerrum/ferrum-app-drive", branch = "main" }
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "tls-rustls-ring-webpki", "postgres", "uuid", "chrono", "json"] }
 tokio = { version = "1.45", features = ["rt-multi-thread", "macros", "sync", "time"] }
