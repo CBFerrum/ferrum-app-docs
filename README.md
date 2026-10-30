@@ -22,6 +22,23 @@ Workspace administrators install it from **Apps** in Ferrum, after Drive (0.7 or
 in the official Ferrum server image. Self-hosters building their own image enable the `docs`
 feature of the server.
 
+## Its interface
+
+Docs' interface (`ui/`) is served by Ferrum under its bar at `/docs/`, with the editor everyone types
+in at once at `/docs/d/{file}`; it is in Drive's family, Workspace (Ferrum docs/plan/apps-ui.md).
+Sharing a document is Drive's share dialog and comments and history are Drive's panel beside it, both
+through the shell.
+
+`ui/dist` is committed: the crate embeds it, so the server carries the interface of the version it was
+built with. With Ferrum-Frontend checked out at `../ferrum/web`:
+
+```
+cd ui
+npm run build       # into dist/, stamped with its sources (commit dist/)
+npm run check       # CI: dist/ was built from ui/ as it is
+npm run typecheck && npm test
+```
+
 ## Development
 
 The crate builds against Ferrum's and Drive's `main` branches; a git-ignored

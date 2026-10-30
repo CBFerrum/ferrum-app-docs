@@ -1,9 +1,10 @@
 //! Docs: documents people write together, over Drive's documents edited live (`.fdoc` files).
 //!
-//! * Templates (`templates`): what a new document starts from, as Markdown. People pick one in
-//!   the web app's Docs page; AI agents run New Document on it.
-//! * In the web app, a home for documents (recent, shared with you, starred, all), with search by
-//!   what they say.
+//! * Templates (`templates`): what a new document starts from, as Markdown. People pick one on
+//!   Docs' home; AI agents run New Document on it.
+//! * Its own interface (`ui/`, at `/docs/` in Drive's family, Workspace): a home for documents
+//!   (recent, shared with you, starred, all) with search by what they say, and the editor
+//!   everyone types in at once (`/docs/d/{file}`). Built into `ui/dist` and embedded as [`UI`].
 //!
 //! The documents themselves are Drive's: who may open them, versions, trash and sharing, and the
 //! actions people and agents use on them (`create_document`, `read_document`,
@@ -16,6 +17,7 @@ use ferrum_kernel::{HookRegistry, Kernel, Result};
 use std::sync::Arc;
 
 include!(concat!(env!("OUT_DIR"), "/packages.rs"));
+include!(concat!(env!("OUT_DIR"), "/ui.rs"));
 
 /// This app's manifest (`app.yaml`).
 pub const MANIFEST: &str = include_str!("../app.yaml");
@@ -52,5 +54,14 @@ mod tests {
         let catalog = ferrum_meta::Catalog::from_packages(all).expect("catalog");
         assert!(catalog.package("docs").is_some());
         assert!(MANIFEST.contains("packages: [docs]") && MANIFEST.contains("drive: \">=0.7\""));
+    }
+
+    #[test]
+    fn the_interface_is_a_release_the_platform_takes() {
+        let m = ferrum_apps::AppManifest::parse(MANIFEST).expect("app.yaml");
+        assert_eq!(m.routes(), vec![("docs".to_string(), vec![])]);
+        let files = UI.iter().map(|(p, b)| (p.to_string(), b.to_vec())).collect();
+        let ui = ferrum_apps::ui::prepare("docs", files).expect("ui/dist is an interface release");
+        assert!(UI.iter().any(|(p, _)| *p == "index.html") && !UI.iter().any(|(p, _)| p.starts_with('.')), "{}", ui.digest);
     }
 }
