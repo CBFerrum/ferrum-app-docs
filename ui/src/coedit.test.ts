@@ -5,6 +5,7 @@ import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
 import { CoeditSession, type Keeper, type SocketLike, backoff, othersIn, socketUrl } from "./coedit";
+import { statusText } from "./LiveDoc";
 
 /** A socket the test drives: what the page sent, and the server's side of the conversation. */
 class FakeSocket implements SocketLike {
@@ -198,6 +199,36 @@ describe("documents edited together", () => {
     vi.advanceTimersByTime(30_000);
     expect(sockets.length).toBe(2);
     other.destroy();
+  });
+
+  it("stops promising to keep changes when the browser cannot, until it can again", async () => {
+    let full = true;
+    const keeper: Keeper = {
+      load: async () => null,
+      save: async () => {
+        if (full) throw new DOMException("The quota has been exceeded.", "QuotaExceededError");
+      },
+      drop: async () => undefined,
+    };
+    session = new CoeditSession("ws://erp.test/ws/docs/drive/d1", () => "token-1", (url) => {
+      const s = new FakeSocket(url);
+      sockets.push(s);
+      return s;
+    }, keeper);
+    const ws = sockets[0]!;
+    connect(ws, server(new Y.Doc()));
+    ws.text({ stored: 1 });
+    ws.drop();
+    expect(session.keeps).toBe(true);
+    session.doc.getText("t").insert(0, "written offline");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(session.state.keepFailed).toBe(true);
+    expect(session.keeps).toBe(false);
+    expect(statusText(session.state, session.keeps)).toBe("Offline: your changes are kept in this tab until the connection is back");
+    full = false;
+    session.doc.getText("t").insert(0, "more ");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(session.keeps).toBe(true);
   });
 
   it("keeps unsaved changes in the browser for the next visit, and forgets them once stored", async () => {
