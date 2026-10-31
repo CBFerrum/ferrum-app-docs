@@ -29,6 +29,7 @@ describe("live documents", () => {
     expect(statusText({ ...s, unsaved: true })).toBe("Saving…");
     expect(statusText({ ...s, online: false })).toBe("Reconnecting…");
     expect(statusText({ ...s, online: false, unsaved: true })).toMatch(/^Offline: your changes are kept in this tab/);
+    expect(statusText({ ...s, online: false, unsaved: true }, true)).toMatch(/^Offline: your changes are kept in this browser/);
     expect(statusText({ ...s, loaded: false })).toBe("Opening…");
     expect(statusText({ ...s, closed: true })).toBe("Not connected");
   });

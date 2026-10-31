@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
-import { CoeditSession, type SocketLike, backoff, othersIn, socketUrl } from "./coedit";
+import { CoeditSession, type Keeper, type SocketLike, backoff, othersIn, socketUrl } from "./coedit";
 
 /** A socket the test drives: what the page sent, and the server's side of the conversation. */
 class FakeSocket implements SocketLike {
@@ -198,6 +198,73 @@ describe("documents edited together", () => {
     vi.advanceTimersByTime(30_000);
     expect(sockets.length).toBe(2);
     other.destroy();
+  });
+
+  it("keeps unsaved changes in the browser for the next visit, and forgets them once stored", async () => {
+    // The browser's store, as IndexedDB would keep it (merging what tabs keep).
+    const kept = new Map<string, Uint8Array>();
+    const keeper: Keeper = {
+      load: async (k) => kept.get(k) ?? null,
+      save: async (k, s) => void kept.set(k, kept.has(k) ? Y.mergeUpdates([kept.get(k)!, s]) : s),
+      drop: async (k) => void kept.delete(k),
+    };
+    const remote = new Y.Doc();
+    const srv = server(remote);
+    const visit = (user = ready.user) => {
+      session = new CoeditSession("ws://erp.test/ws/docs/drive/d1", () => "token-1", (url) => {
+        const s = new FakeSocket(url);
+        sockets.push(s);
+        return s;
+      }, keeper);
+      const ws = sockets[sockets.length - 1];
+      ws.open();
+      return { ws, user };
+    };
+    const key = "ws://erp.test/ws/docs/drive/d1|u1";
+    expect(new CoeditSession("ws://x/ws/docs/drive/d", () => null, () => new FakeSocket("x"), null).keeps).toBe(false);
+
+    // Typed offline, then the tab is closed: the browser keeps it.
+    let { ws } = visit();
+    expect(session.keeps).toBe(true);
+    connect(ws, srv);
+    ws.text({ stored: 1 });
+    ws.drop();
+    session.doc.getText("t").insert(0, "written on the train");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(kept.has(key)).toBe(true);
+    session.destroy();
+    expect(words(remote)).toBe("");
+
+    // Someone else signing in on this browser does not get it.
+    ({ ws } = visit());
+    ws.text({ ...ready, user: { id: "u2", name: "Raj Patel", color: "#047857" } });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(words(session.doc)).toBe("");
+    session.destroy();
+
+    // The next visit sends it; once stored, the browser forgets it.
+    ({ ws } = visit());
+    connect(ws, srv);
+    await vi.advanceTimersByTimeAsync(10);
+    for (const a of srv.take(ws.binaries())) ws.binary(a);
+    expect(words(remote)).toBe("written on the train");
+    ws.text({ stored: 9 });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(kept.has(key)).toBe(false);
+    session.destroy();
+
+    // With view access only, what was kept is let go, and the person is told.
+    kept.set(key, Y.encodeStateAsUpdate((() => {
+      const d = new Y.Doc();
+      d.getText("t").insert(0, "too late");
+      return d;
+    })()));
+    ({ ws } = visit());
+    connect(ws, srv, "read");
+    await vi.advanceTimersByTimeAsync(10);
+    expect(session.state.error).toMatch(/not saved/);
+    expect(kept.has(key)).toBe(false);
+    expect(words(session.doc)).not.toContain("too late");
   });
 
   it("waits longer after each failure, up to 30 seconds", () => {

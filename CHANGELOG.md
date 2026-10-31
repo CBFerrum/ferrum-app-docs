@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+- Images in documents (Ferrum collaboration.md, C3; Drive 0.9.0): from the toolbar, pasted or
+  dropped in, kept by the document in Drive and shown from there, with a description for screen
+  readers. Pasted web pages keep their text but not their pictures; after an image the caret moves
+  on, so typing never replaces it.
+- File → Download as Word (.docx).
+- Changes typed offline survive the tab: they are kept in the browser per person and document, sent
+  at the next visit when the person may still edit, and let go once stored. The status line says so,
+  and leaving no longer asks for confirmation where the browser keeps them. The editor notices the
+  network going away at once.
+
 ## 0.2.1
 
 - The family's navigation (Drive, Sheets, Slides, PDF, Docs) has each entry's icon and colour, and

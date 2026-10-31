@@ -333,3 +333,16 @@ input.doc-title:focus {
   white-space: nowrap;
   user-select: none;
 }
+
+/* Images in the document: as wide as they are, never wider than the page. */
+.doc-body img.doc-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75em auto;
+  border-radius: 4px;
+}
+.doc-body img.doc-image.ProseMirror-selectednode {
+  outline: 2px solid var(--ferrum-primary, #2563eb);
+  outline-offset: 2px;
+}
