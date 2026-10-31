@@ -38,6 +38,12 @@ through the shell.
   order of the text, replies take @mentions, and Resolve puts a thread away (Resolved, to reopen).
   The mark moves with everyone's typing. Drive keeps the threads (Drive 0.10: anchors, replies,
   `resolve_comment`), and its panel lists them with the words they are on.
+* **Suggestions**: switch the toolbar's mode to Suggesting (editors) and typing proposes. New words
+  show green and removed ones red and struck through, signed and timed; one change is one suggestion,
+  and typing over words you struck makes it a replacement. Whoever may edit accepts or rejects each,
+  or all, beside the page; everyone sees them at once. While suggesting, deletions are made by the
+  editor itself (the browser says what it would delete), and formatting and structure are refused: a
+  mark cannot carry them. A Word download keeps open suggestions as tracked changes.
 * **Downloads**: a web page, a PDF or a Word file (`.docx`, images, lists and tables inside), or
   the text.
 * **Offline**: changes typed without a connection go to the server when it is back. They are kept in
