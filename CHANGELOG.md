@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2
+
+- Keeping unsaved changes fails safely: a browser that refuses the write at once (as some do when
+  storage is full) no longer counts as having kept them, so the bar and the warning before leaving
+  say so; an earlier copy that cannot be read is replaced instead of blocking every later save; and
+  a kept copy that cannot be applied is let go instead of failing at every visit.
+
 ## 0.5.1
 
 - When the browser cannot keep unsaved changes (its storage is full, or it refuses IndexedDB), the

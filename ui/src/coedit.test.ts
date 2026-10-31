@@ -231,6 +231,21 @@ describe("documents edited together", () => {
     expect(session.keeps).toBe(true);
   });
 
+  it("lets go of a kept copy it cannot read, rather than failing at every visit", async () => {
+    const key = "ws://erp.test/ws/docs/drive/d1|u1";
+    const kept = new Map<string, Uint8Array>([[key, new Uint8Array(12).fill(255)]]);
+    const keeper: Keeper = { load: async (k) => kept.get(k) ?? null, save: async (k, s) => void kept.set(k, s), drop: async (k) => void kept.delete(k) };
+    session = new CoeditSession("ws://erp.test/ws/docs/drive/d1", () => "token-1", (url) => {
+      const s = new FakeSocket(url);
+      sockets.push(s);
+      return s;
+    }, keeper);
+    connect(sockets[0]!, server(new Y.Doc()));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(kept.has(key)).toBe(false);
+    expect(session.state).toMatchObject({ error: null, loaded: true });
+  });
+
   it("keeps unsaved changes in the browser for the next visit, and forgets them once stored", async () => {
     // The browser's store, as IndexedDB would keep it (merging what tabs keep).
     const kept = new Map<string, Uint8Array>();
