@@ -22,6 +22,7 @@ import {
   Bold,
   Code,
   Highlighter,
+  ImagePlus,
   Italic,
   Link2,
   List,
@@ -36,12 +37,13 @@ import {
   Undo2,
   type LucideIcon,
 } from "lucide-react";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useState, useSyncExternalStore } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
 import { api, download, errorMessage, initials, openPrint, shell } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMetaIndex } from "@ferrum/records";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
+import { DocImage, IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { usePresence } from "./presence";
 import "./livedoc.css";
@@ -49,11 +51,29 @@ import "./livedoc.css";
 /** Drive's panel of a file's comments and history (a contextual side panel of Drive). */
 const DETAILS_PANEL = "drive.details";
 
-/** What the bar says about the document's connection and saving. */
-export function statusText(s: Pick<CoeditState, "online" | "loaded" | "unsaved" | "closed">): string {
+/** Adds image files to the document: each goes up to Drive (the document keeps it), then into the
+ *  text at the selection, in order. */
+async function addImages(editor: Editor, file: string, files: File[]) {
+  for (const f of files) {
+    if (f.size > MAX_IMAGE) {
+      toast(`“${f.name}” is larger than 10 MB`, "error");
+      continue;
+    }
+    try {
+      const up = await api.post<{ id: string; width: number; height: number }>(`/api/app/drive/files/${encodeURIComponent(file)}/images`, f);
+      editor.chain().focus().insertImage({ image: up.id, alt: "", width: up.width, height: up.height }).run();
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    }
+  }
+}
+
+/** What the bar says about the document's connection and saving; `keeps`: the browser keeps
+ *  unsaved changes beyond this tab. */
+export function statusText(s: Pick<CoeditState, "online" | "loaded" | "unsaved" | "closed">, keeps = false): string {
   if (s.closed) return "Not connected";
   if (!s.loaded) return "Opening…";
-  if (!s.online) return s.unsaved ? "Offline: your changes are kept in this tab until the connection is back" : "Reconnecting…";
+  if (!s.online) return s.unsaved ? `Offline: your changes are kept in this ${keeps ? "browser" : "tab"} until the connection is back` : "Reconnecting…";
   return s.unsaved ? "Saving…" : "Saved";
 }
 
@@ -103,6 +123,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const meta = useMetaIndex().data;
   const editable = state.loaded && state.access === "write" && !state.closed;
   const title = docTitle(info.name);
+  // The editor, for pasted and dropped images (its handlers are set when it is made).
+  const current = useRef<Editor | null>(null);
 
   const editor = useEditor(
     {
@@ -115,11 +137,30 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         TableKit.configure({ table: { resizable: false } }),
         TextAlign.configure({ types: ["heading", "paragraph"] }),
         Placeholder.configure({ placeholder: "Start typing, or use # for a heading and - for a list" }),
+        DocImage.configure({ file }),
         Collaboration.configure({ document: session.doc, field: "default" }),
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
       ],
       editorProps: {
         attributes: { class: "doc-body", "aria-label": `${title}, document`, spellcheck: "true" },
+        // Pictures pasted or dropped in go up to Drive and into the text.
+        handlePaste: (_view, event) => {
+          const images = imageFiles(event.clipboardData?.files);
+          if (!images.length || !current.current) return false;
+          event.preventDefault();
+          void addImages(current.current, file, images);
+          return true;
+        },
+        handleDrop: (view, event, _slice, moved) => {
+          const images = moved ? [] : imageFiles(event.dataTransfer?.files);
+          const ed = current.current;
+          if (!images.length || !ed) return false;
+          event.preventDefault();
+          const at = view.posAtCoords({ left: event.clientX, top: event.clientY });
+          if (at) ed.commands.setTextSelection(at.pos);
+          void addImages(ed, file, images);
+          return true;
+        },
         // Links open with Ctrl or ⌘ held (a plain click places the cursor in them).
         handleClick: (_view, _pos, event) => {
           const a = (event.target as HTMLElement | null)?.closest("a[href]");
@@ -132,6 +173,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     [session],
   );
   useEffect(() => {
+    current.current = editor;
+  }, [editor]);
+  useEffect(() => {
     if (editor && editor.isEditable !== editable) editor.setEditable(editable);
   }, [editor, editable]);
   useEffect(() => {
@@ -141,8 +185,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   // Drive's lists show who has the file open.
   usePresence(file, state.loaded ? (state.access === "write" ? "edit" : "view") : null);
 
-  // Leaving with changes the server has not stored yet.
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => state.unsaved && currentLocation.pathname !== nextLocation.pathname);
+  // Leaving with changes the server has not stored yet, where the browser cannot keep them.
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => !session.keeps && state.unsaved && currentLocation.pathname !== nextLocation.pathname);
   useEffect(() => {
     if (blocker.state !== "blocked") return;
     void confirmDialog({
@@ -153,11 +197,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     }).then((ok) => (ok ? blocker.proceed() : blocker.reset()));
   }, [blocker, state.online]);
   useEffect(() => {
-    if (!state.unsaved) return;
+    if (!state.unsaved || session.keeps) return;
     const warn = (e: BeforeUnloadEvent) => e.preventDefault();
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [state.unsaved]);
+  }, [state.unsaved, session.keeps]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
@@ -171,7 +215,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
 
   const act = (action: string, body: Record<string, unknown>) => api.post<{ id: string }>(`/api/v1/DriveSpace/${space.data?.id}/actions/${action}`, body);
   const content = `/api/app/drive/files/${file}/content`;
-  const exportAs = async (format: "html" | "pdf" | "txt") => {
+  const exportAs = async (format: "html" | "pdf" | "docx" | "txt") => {
     try {
       await download(content, `${title}.${format}`, { format });
     } catch (e) {
@@ -227,7 +271,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         )}
         <Title name={info.name} canRename={canEdit && !!space.data} rename={(name) => act("rename", { item: file, name }).then(() => qc.invalidateQueries({ queryKey: ["drive"] }))} />
         <span className="doc-status" role="status" aria-live="polite">
-          {statusText(state)}
+          {statusText(state, session.keeps)}
         </span>
         {state.loaded && state.access === "read" && <Badge>View only</Badge>}
         <People people={people} />
@@ -250,6 +294,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                 <>
                   <MenuItem onSelect={item(() => exportAs("html"))}>Download as web page (.html)</MenuItem>
                   <MenuItem onSelect={item(() => exportAs("pdf"))}>Download as PDF</MenuItem>
+                  <MenuItem onSelect={item(() => exportAs("docx"))}>Download as Word (.docx)</MenuItem>
                   <MenuItem onSelect={item(() => exportAs("txt"))}>Download as text (.txt)</MenuItem>
                   <MenuItem onSelect={item(() => openPrint(`${content}?format=html&inline=1`).catch((e: unknown) => toast(errorMessage(e), "error")))}>Print</MenuItem>
                   {space.data && info.parent && <MenuItem onSelect={item(copy)}>Make a copy</MenuItem>}
@@ -261,7 +306,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </div>
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{state.error}</Alert>}
-      {editor && editable && <Toolbar editor={editor} />}
+      {editor && editable && <Toolbar editor={editor} addImages={(files) => addImages(editor, file, files)} />}
       <div className="doc-main">
         <div className="doc-paper">
           {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
@@ -359,7 +404,7 @@ const STYLES = [
   { id: "h3", label: "Heading 3" },
 ] as const;
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, addImages }: { editor: Editor; addImages: (files: File[]) => Promise<void> }) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -382,9 +427,13 @@ function Toolbar({ editor }: { editor: Editor }) {
       right: e.isActive({ textAlign: "right" }),
       canUndo: e.can().undo(),
       canRedo: e.can().redo(),
+      image: e.isActive("image"),
     }),
   });
   const [linking, setLinking] = useState(false);
+  const [describing, setDescribing] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const picker = useRef<HTMLInputElement>(null);
   const run = () => editor.chain().focus();
   return (
     <div className="doc-toolbar" role="toolbar" aria-label="Formatting">
@@ -418,6 +467,25 @@ function Toolbar({ editor }: { editor: Editor }) {
       <Tool label="Highlight" icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
       <Tool label="Code" icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
       <Tool label={s.link ? "Edit link" : "Link"} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
+      <Tool label={adding ? "Adding the image…" : "Image"} icon={ImagePlus} disabled={adding} onClick={() => picker.current?.click()} />
+      <input
+        ref={picker}
+        type="file"
+        accept={IMAGE_TYPES.join(",")}
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = imageFiles(e.target.files);
+          e.target.value = "";
+          setAdding(true);
+          void addImages(files).finally(() => setAdding(false));
+        }}
+      />
+      {s.image && (
+        <button type="button" className="doc-tool doc-tool-text" onMouseDown={(e) => e.preventDefault()} onClick={() => setDescribing(true)}>
+          Describe image
+        </button>
+      )}
       <Sep />
       <Tool label="Bulleted list" icon={List} active={s.bullet} onClick={() => run().toggleBulletList().run()} />
       <Tool label="Numbered list" icon={ListOrdered} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
@@ -456,7 +524,35 @@ function Toolbar({ editor }: { editor: Editor }) {
         }}
       </Menu>
       {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
+      {describing && <DescribeDialog editor={editor} onClose={() => setDescribing(false)} />}
     </div>
+  );
+}
+
+/** What an image shows, for people who cannot see it (screen readers, and files that lose it). */
+function DescribeDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
+  const [alt, setAlt] = useState((editor.getAttributes("image").alt as string | undefined) ?? "");
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    editor.chain().focus().describeImage(alt).run();
+    onClose();
+  };
+  const footer: ReactNode = (
+    <>
+      <Button onClick={onClose}>Cancel</Button>
+      <Button variant="primary" type="submit" form="doc-describe-form">
+        Save
+      </Button>
+    </>
+  );
+  return (
+    <Dialog open onClose={onClose} title="Describe the image" footer={footer}>
+      <form id="doc-describe-form" onSubmit={save}>
+        <Field label="Description" htmlFor="doc-describe-alt" hint="What it shows, in a sentence; leave empty for a decoration">
+          <input id="doc-describe-alt" className="input" value={alt} maxLength={300} onChange={(e) => setAlt(e.target.value)} data-autofocus />
+        </Field>
+      </form>
+    </Dialog>
   );
 }
 

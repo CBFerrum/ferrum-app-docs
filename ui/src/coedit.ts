@@ -4,7 +4,9 @@
 //
 // Changes typed while the connection is down stay in this tab and go to the server when it is
 // back (its sync step carries everything it lacks). The server says how many of this tab's change
-// messages it has stored (`{"stored": n}`); until then they count as unsaved.
+// messages it has stored (`{"stored": n}`); until then they count as unsaved, and they are kept in
+// this browser too (IndexedDB, per person and document): a tab closed or reloaded before the server
+// stored them sends them the next time that person opens the document, if they may still edit it.
 
 import * as decoding from "lib0/decoding";
 import * as encoding from "lib0/encoding";
@@ -55,6 +57,73 @@ const OPEN = 1;
 const PING = 20_000;
 const SILENCE = 45_000;
 const LOST = "You can only view this document now; your latest changes were not saved.";
+/** How long unsaved changes nobody came back for are kept in the browser. */
+const KEEP_DAYS = 30;
+/** The origin of changes taken back from the browser: sent like ones typed here. */
+const KEPT = Symbol("kept");
+
+/** Where a person's unsaved changes to a document wait in this browser between visits. */
+export interface Keeper {
+  load(key: string): Promise<Uint8Array | null>;
+  /** Adds `state` to what is kept under `key` (another tab may keep changes of its own there). */
+  save(key: string, state: Uint8Array): Promise<void>;
+  drop(key: string): Promise<void>;
+}
+
+function done(t: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    t.oncomplete = () => resolve();
+    t.onerror = t.onabort = () => reject(t.error);
+  });
+}
+
+/** The browser's IndexedDB as a [`Keeper`]; null where there is none. */
+export function browserKeeper(): Keeper | null {
+  if (typeof indexedDB === "undefined") return null;
+  const STORE = "unsaved";
+  let db: Promise<IDBDatabase> | null = null;
+  const open = () =>
+    (db ??= new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open("ferrum-docs", 1);
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+      req.onerror = () => reject(req.error);
+      req.onsuccess = () => {
+        // Changes nobody came back for go after a while.
+        const t = req.result.transaction(STORE, "readwrite");
+        const cursor = t.objectStore(STORE).openCursor();
+        cursor.onsuccess = () => {
+          const c = cursor.result;
+          if (!c) return;
+          if (Date.now() - ((c.value as { at?: number }).at ?? 0) > KEEP_DAYS * 86_400_000) c.delete();
+          c.continue();
+        };
+        resolve(req.result);
+      };
+    }));
+  return {
+    async load(key) {
+      const t = (await open()).transaction(STORE);
+      const req = t.objectStore(STORE).get(key);
+      await done(t);
+      return (req.result as { state?: Uint8Array } | undefined)?.state ?? null;
+    },
+    async save(key, state) {
+      const t = (await open()).transaction(STORE, "readwrite");
+      const store = t.objectStore(STORE);
+      const req = store.get(key);
+      req.onsuccess = () => {
+        const before = (req.result as { state?: Uint8Array } | undefined)?.state;
+        store.put({ state: before ? Y.mergeUpdates([before, state]) : state, at: Date.now() }, key);
+      };
+      await done(t);
+    },
+    async drop(key) {
+      const t = (await open()).transaction(STORE, "readwrite");
+      t.objectStore(STORE).delete(key);
+      await done(t);
+    },
+  };
+}
 /** Closes after which trying again would not help. */
 const FINAL: Record<number, string> = {
   4400: "This tab's copy of the document could not be sent. Reload the page to continue.",
@@ -86,6 +155,12 @@ export class CoeditSession {
   private stored = 0;
   private dirty = false;
   private stopped = false;
+  /** Where this person's unsaved changes to the document are kept in the browser, once known. */
+  private keepKey: string | null = null;
+  private keepTimer: ReturnType<typeof setTimeout> | undefined;
+  private restored = false;
+  /** Whether unsaved changes outlive this tab (the browser keeps them). */
+  readonly keeps: boolean;
 
   constructor(
     private readonly url: string,
@@ -93,12 +168,15 @@ export class CoeditSession {
      *  with the socket's handshake (an app's own pages), undefined when signed out. */
     private readonly token: () => string | null | undefined,
     private readonly open: (url: string) => SocketLike = (u) => new WebSocket(u) as unknown as SocketLike,
+    private readonly keeper: Keeper | null = browserKeeper(),
   ) {
+    this.keeps = keeper !== null;
     this.doc.on("update", this.onUpdate);
     this.awareness.on("update", this.onAwareness);
     if (typeof window !== "undefined") {
       window.addEventListener("online", this.reconnectNow);
-      window.addEventListener("pagehide", this.leaveAwareness);
+      window.addEventListener("offline", this.goneOffline);
+      window.addEventListener("pagehide", this.onHide);
       document.addEventListener("visibilitychange", this.onVisible);
     }
     this.connect();
@@ -158,6 +236,8 @@ export class CoeditSession {
       const final = FINAL[e.code] ?? (e.code === 4401 ? "Your session has ended. Sign in again to keep editing." : null);
       if (this.stopped) return;
       if (final) {
+        // Access ended or the document is gone: what this browser kept for it can never be saved.
+        if (e.code !== 4401 && this.keeper && this.keepKey) void this.keeper.drop(this.keepKey).catch(() => undefined);
         this.set({ online: false, closed: true, error: final });
         return;
       }
@@ -181,9 +261,62 @@ export class CoeditSession {
     this.connect();
   };
 
+  /** The browser lost the network: offline now, rather than when the line goes quiet. */
+  private goneOffline = () => {
+    const ws = this.ws;
+    if (!ws) return;
+    ws.close(4000, "offline");
+    ws.onclose?.({ code: 4000, reason: "offline" });
+  };
+
   private onVisible = () => {
     if (document.visibilityState === "visible") this.reconnectNow();
+    // Hidden tabs may be closed without notice: what is unsaved goes to the browser now.
+    else this.keepNow();
   };
+
+  private onHide = () => {
+    this.keepNow();
+    this.leaveAwareness();
+  };
+
+  /** Keeps (or forgets) this tab's unsaved changes in the browser shortly. */
+  private keepSoon() {
+    if (!this.keeper || !this.keepKey) return;
+    clearTimeout(this.keepTimer);
+    this.keepTimer = setTimeout(() => this.keepNow(), 400);
+  }
+
+  private keepNow() {
+    clearTimeout(this.keepTimer);
+    const key = this.keepKey;
+    if (!this.keeper || !key || this.stopped) return;
+    const job = this.state.unsaved ? this.keeper.save(key, Y.encodeStateAsUpdate(this.doc)) : this.keeper.drop(key);
+    void job.catch(() => undefined);
+  }
+
+  /** Once per tab: changes this person left unsaved in an earlier visit go to the server now (or,
+   *  with view access only, are let go). */
+  private async restore(access: Access) {
+    const key = this.keepKey;
+    if (!this.keeper || !key || this.restored) return;
+    this.restored = true;
+    let kept: Uint8Array | null = null;
+    try {
+      kept = await this.keeper.load(key);
+    } catch {
+      return;
+    }
+    if (!kept || this.stopped) return;
+    if (access !== "write") {
+      void this.keeper.drop(key).catch(() => undefined);
+      this.set({ error: LOST });
+      return;
+    }
+    Y.applyUpdate(this.doc, kept, KEPT);
+    // Nothing the server lacked: nothing left to keep.
+    if (!this.state.unsaved) void this.keeper.drop(key).catch(() => undefined);
+  }
 
   private send(data: Uint8Array): boolean {
     const ws = this.ws;
@@ -206,6 +339,7 @@ export class CoeditSession {
       // Back with view access only: what was typed here meanwhile cannot be stored.
       const lost = access === "read" && this.dirty ? LOST : null;
       this.set({ online: true, access, me, error: lost ?? (this.state.error === LOST ? LOST : null) });
+      this.keepKey = `${this.url}|${me.id}`;
       this.awareness.setLocalStateField("user", { name: me.name, color: me.color });
       // Our state vector (the server answers with what we lack), and who we are.
       const encoder = encoding.createEncoder();
@@ -216,9 +350,12 @@ export class CoeditSession {
       clearInterval(this.pingTimer);
       this.lastHeard = Date.now();
       this.pingTimer = setInterval(() => this.ping(ws), PING);
+      void this.restore(access);
     } else if (typeof msg.stored === "number") {
       this.stored = Math.max(this.stored, msg.stored);
       this.set({});
+      // Everything stored: the browser need not keep it any more.
+      if (!this.state.unsaved) this.keepSoon();
     } else if (msg.access === "read" || msg.access === "write") {
       this.set({ access: msg.access, error: msg.access === "read" && this.sent > this.stored ? LOST : this.state.error });
     } else if (typeof msg.error === "string") {
@@ -255,6 +392,7 @@ export class CoeditSession {
     if (this.send(encoding.toUint8Array(encoder))) this.sent++;
     else this.dirty = true;
     this.set({});
+    this.keepSoon();
   };
 
   /** Only this tab's own state goes out: others' arrive from the server, and time out there. */
@@ -288,16 +426,20 @@ export class CoeditSession {
     awarenessProtocol.removeAwarenessStates(this.awareness, [this.doc.clientID], "leave");
   };
 
-  /** Leaves the document: this tab's cursor goes, the socket closes, nothing reconnects. */
+  /** Leaves the document: this tab's cursor goes, the socket closes, nothing reconnects. What is
+   *  still unsaved stays in the browser for the next visit. */
   destroy() {
     if (this.stopped) return;
+    this.keepNow();
     this.leaveAwareness();
     this.stopped = true;
+    clearTimeout(this.keepTimer);
     clearTimeout(this.retryTimer);
     clearInterval(this.pingTimer);
     if (typeof window !== "undefined") {
       window.removeEventListener("online", this.reconnectNow);
-      window.removeEventListener("pagehide", this.leaveAwareness);
+      window.removeEventListener("offline", this.goneOffline);
+      window.removeEventListener("pagehide", this.onHide);
       document.removeEventListener("visibilitychange", this.onVisible);
     }
     const ws = this.ws;

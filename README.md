@@ -29,6 +29,17 @@ in at once at `/docs/d/{file}`; it is in Drive's family, Workspace (Ferrum docs/
 Sharing a document is Drive's share dialog and comments and history are Drive's panel beside it, both
 through the shell.
 
+* **Images**: the toolbar's Image button, or pictures pasted or dropped in, go up to Drive (Drive 0.9:
+  PNG, JPEG, GIF or WebP up to 10 MB). The document keeps them, and "Describe image" gives each one
+  its text for screen readers. Pictures in pasted web pages are left out: only a document's own
+  images move between documents.
+* **Downloads**: a web page, a PDF or a Word file (`.docx`, images, lists and tables inside), or
+  the text.
+* **Offline**: changes typed without a connection go to the server when it is back. They are kept in
+  the browser (IndexedDB, per person and document, for 30 days), so closing or reloading the tab
+  loses nothing; the next time that person opens the document they are sent, if they may still edit
+  it.
+
 `ui/dist` is committed: the crate embeds it, so the server carries the interface of the version it was
 built with. With Ferrum-Frontend checked out at `../ferrum/web`:
 
