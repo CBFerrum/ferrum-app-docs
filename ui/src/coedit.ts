@@ -116,7 +116,18 @@ export function browserKeeper(): Keeper | null {
       const req = store.get(key);
       req.onsuccess = () => {
         const before = (req.result as { state?: Uint8Array } | undefined)?.state;
-        store.put({ state: before ? Y.mergeUpdates([before, state]) : state, at: Date.now() }, key);
+        let merged = state;
+        try {
+          if (before) merged = Y.mergeUpdates([before, state]);
+        } catch {
+          // An earlier copy that cannot be read (damaged): this one replaces it.
+        }
+        try {
+          store.put({ state: merged, at: Date.now() }, key);
+        } catch {
+          // Refused at once (some browsers, when storage is full): the save fails, and says so.
+          t.abort();
+        }
       };
       await done(t);
     },
@@ -324,7 +335,13 @@ export class CoeditSession {
       this.set({ error: LOST });
       return;
     }
-    Y.applyUpdate(this.doc, kept, KEPT);
+    try {
+      Y.applyUpdate(this.doc, kept, KEPT);
+    } catch {
+      // Damaged, so it can never be applied: let it go rather than fail at every visit.
+      void this.keeper.drop(key).catch(() => undefined);
+      return;
+    }
     // Nothing the server lacked: nothing left to keep.
     if (!this.state.unsaved) void this.keeper.drop(key).catch(() => undefined);
   }
