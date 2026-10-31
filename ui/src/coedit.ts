@@ -35,6 +35,9 @@ export interface CoeditState {
   error: string | null;
   /** Closed for good: reconnecting would not help. */
   closed: boolean;
+  /** The browser failed to keep this tab's unsaved changes the last time it tried (its storage
+   *  is full or refused): until it manages again, they live in this tab only. */
+  keepFailed: boolean;
 }
 
 /** The parts of a WebSocket the session uses (tests give their own). */
@@ -143,7 +146,7 @@ export function backoff(attempt: number, random = Math.random): number {
 export class CoeditSession {
   readonly doc = new Y.Doc();
   readonly awareness = new awarenessProtocol.Awareness(this.doc);
-  state: CoeditState = { online: false, loaded: false, access: null, me: null, unsaved: false, error: null, closed: false };
+  state: CoeditState = { online: false, loaded: false, access: null, me: null, unsaved: false, error: null, closed: false, keepFailed: false };
   private ws: SocketLike | null = null;
   private listeners = new Set<() => void>();
   private attempt = 0;
@@ -159,8 +162,10 @@ export class CoeditSession {
   private keepKey: string | null = null;
   private keepTimer: ReturnType<typeof setTimeout> | undefined;
   private restored = false;
-  /** Whether unsaved changes outlive this tab (the browser keeps them). */
-  readonly keeps: boolean;
+  /** Whether unsaved changes outlive this tab: the browser keeps them, as long as it manages to. */
+  get keeps(): boolean {
+    return this.keeper !== null && !this.state.keepFailed;
+  }
 
   constructor(
     private readonly url: string,
@@ -170,7 +175,6 @@ export class CoeditSession {
     private readonly open: (url: string) => SocketLike = (u) => new WebSocket(u) as unknown as SocketLike,
     private readonly keeper: Keeper | null = browserKeeper(),
   ) {
-    this.keeps = keeper !== null;
     this.doc.on("update", this.onUpdate);
     this.awareness.on("update", this.onAwareness);
     if (typeof window !== "undefined") {
@@ -291,8 +295,15 @@ export class CoeditSession {
     clearTimeout(this.keepTimer);
     const key = this.keepKey;
     if (!this.keeper || !key || this.stopped) return;
-    const job = this.state.unsaved ? this.keeper.save(key, Y.encodeStateAsUpdate(this.doc)) : this.keeper.drop(key);
-    void job.catch(() => undefined);
+    if (!this.state.unsaved) {
+      void this.keeper.drop(key).catch(() => undefined);
+      return;
+    }
+    // A failure (storage full, say) is said: the page then warns before the tab goes.
+    void this.keeper.save(key, Y.encodeStateAsUpdate(this.doc)).then(
+      () => this.set({ keepFailed: false }),
+      () => this.set({ keepFailed: true }),
+    );
   }
 
   /** Once per tab: changes this person left unsaved in an earlier visit go to the server now (or,

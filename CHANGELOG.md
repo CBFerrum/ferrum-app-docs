@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1
+
+- When the browser cannot keep unsaved changes (its storage is full, or it refuses IndexedDB), the
+  page says they are kept in this tab only and warns before the tab is left, instead of promising
+  the browser keeps them. It promises again once a later try succeeds.
+
 ## 0.5.0
 
 - Suggestions (Ferrum collaboration.md, C3): a mode for editors, Editing or Suggesting. While
