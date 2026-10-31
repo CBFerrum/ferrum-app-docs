@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0
+
+- Suggestions (Ferrum collaboration.md, C3): a mode for editors, Editing or Suggesting. While
+  suggesting, typing proposes: `insertion` and `deletion` marks carry who, when and an id in the
+  shared document (a replacement shares one). Deleting your own proposal removes it. Backspace and
+  Delete strike instead of removing, the caret moving on, and formatting or structure is refused with
+  a note. The rail lists suggestions with Accept and Reject (each, or all) for whoever may edit.
+  Exports show them (HTML ins/del, Word's tracked changes, checked in LibreOffice).
+
 ## 0.4.0
 
 - Comments on the text (Ferrum collaboration.md, C3; Drive 0.10.0): select words and press Comment

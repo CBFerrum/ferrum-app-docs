@@ -45,6 +45,7 @@ import { can, useMetaIndex } from "@ferrum/records";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
 import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
 import { DocComments, anchorOf, textThreads } from "./comments";
+import { Deletion, Insertion, Suggestions, setSuggesting, suggestionsIn } from "./suggest";
 import { DocImage, IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { usePresence } from "./presence";
@@ -146,6 +147,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         Placeholder.configure({ placeholder: "Start typing, or use # for a heading and - for a list" }),
         DocImage.configure({ file }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
+        Insertion,
+        Deletion,
+        Suggestions.configure({ onRefused: () => toast("While suggesting, only words change: switch to Editing to change formatting or structure") }),
         Collaboration.configure({ document: session.doc, field: "default" }),
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
       ],
@@ -248,7 +252,13 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const canComment = allows(info.permission, "Comment") && !!space.data;
   const selected = useEditorState({ editor, selector: ({ editor: e }) => !!e && !e.state.selection.empty }) ?? false;
   const threads = useQuery({ ...commentsQuery(file), enabled: state.loaded });
-  const railShown = !!draft || textThreads(threads.data ?? []).length > 0;
+  // Suggesting: what this person types is proposed, signed with their name.
+  const [suggesting, setMode] = useState(false);
+  useEffect(() => {
+    if (editor && !editor.isDestroyed) editor.view.dispatch(setSuggesting(editor.state, suggesting && editable, state.me ? { id: state.me.id, name: state.me.name } : null));
+  }, [editor, suggesting, editable, state.me]);
+  const pending = useEditorState({ editor, selector: ({ editor: e }) => (e ? suggestionsIn(e.state.doc).length : 0) }) ?? 0;
+  const railShown = !!draft || pending > 0 || textThreads(threads.data ?? []).length > 0;
   /** A comment on the selected words (Ctrl+Alt+M). */
   const startComment = () => {
     const a = editor ? anchorOf(editor.state) : null;
@@ -337,7 +347,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </div>
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{state.error}</Alert>}
-      {editor && editable && <Toolbar editor={editor} addImages={(files) => addImages(editor, file, files)} />}
+      {editor && editable && <Toolbar editor={editor} addImages={(files) => addImages(editor, file, files)} suggesting={suggesting} setSuggesting={setMode} />}
       <div className={`doc-main${railShown ? " doc-main-rail" : ""}`}>
         <div className="doc-paper">
           {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
@@ -348,6 +358,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
             editor={editor}
             file={file}
             canComment={canComment}
+            canEdit={editable}
             canManage={allows(info.permission, "Manage")}
             act={act}
             draft={draft}
@@ -448,7 +459,17 @@ const STYLES = [
   { id: "h3", label: "Heading 3" },
 ] as const;
 
-function Toolbar({ editor, addImages }: { editor: Editor; addImages: (files: File[]) => Promise<void> }) {
+function Toolbar({
+  editor,
+  addImages,
+  suggesting,
+  setSuggesting: setMode,
+}: {
+  editor: Editor;
+  addImages: (files: File[]) => Promise<void>;
+  suggesting: boolean;
+  setSuggesting: (on: boolean) => void;
+}) {
   const s = useEditorState({
     editor,
     selector: ({ editor: e }) => ({
@@ -480,7 +501,15 @@ function Toolbar({ editor, addImages }: { editor: Editor; addImages: (files: Fil
   const picker = useRef<HTMLInputElement>(null);
   const run = () => editor.chain().focus();
   return (
-    <div className="doc-toolbar" role="toolbar" aria-label="Formatting">
+    <div className={`doc-toolbar${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label="Formatting">
+      <label className="sr-only" htmlFor="doc-mode">
+        Mode
+      </label>
+      <select id="doc-mode" className="doc-style doc-mode" value={suggesting ? "suggest" : "edit"} onChange={(e) => setMode(e.target.value === "suggest")}>
+        <option value="edit">Editing</option>
+        <option value="suggest">Suggesting</option>
+      </select>
+      <Sep />
       <Tool label="Undo" icon={Undo2} disabled={!s.canUndo} onClick={() => run().undo().run()} />
       <Tool label="Redo" icon={Redo2} disabled={!s.canRedo} onClick={() => run().redo().run()} />
       <Sep />

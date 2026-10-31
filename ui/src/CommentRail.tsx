@@ -10,6 +10,7 @@ import { api, errorMessage } from "@ferrum/client";
 import { Button, confirmDialog, toast } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
+import { type Suggestion, settle, suggestionsIn } from "./suggest";
 
 type Act = (action: string, params: Record<string, unknown>) => Promise<{ id?: string }>;
 
@@ -31,6 +32,7 @@ export function CommentRail({
   editor,
   file,
   canComment,
+  canEdit,
   canManage,
   act,
   draft,
@@ -41,6 +43,8 @@ export function CommentRail({
   editor: Editor;
   file: string;
   canComment: boolean;
+  /** May accept and reject suggestions. */
+  canEdit: boolean;
   canManage: boolean;
   act: Act;
   draft: Draft | null;
@@ -139,9 +143,77 @@ export function CommentRail({
     </div>
   );
 
-  if (!draft && !all.length) return null;
+  // Suggestions, from the document itself (the marks everyone shares).
+  const proposals = useEditorState({
+    editor,
+    selector: ({ editor: e }) => (e ? suggestionsIn(e.state.doc) : []),
+    equalityFn: (a, b) => !!b && JSON.stringify(a) === JSON.stringify(b),
+  });
+  const decide = (s: Suggestion, accept: boolean) => editor.view.dispatch(settle(editor.state, s.id, accept));
+  const decideAll = (accept: boolean) => {
+    for (const s of [...proposals].reverse()) editor.view.dispatch(settle(editor.state, s.id, accept));
+  };
+  const showProposal = (s: Suggestion) => editor.chain().setTextSelection({ from: s.from, to: s.to }).scrollIntoView().run();
+
+  if (!draft && !all.length && !proposals.length) return null;
   return (
-    <aside className="doc-rail" aria-label="Comments on the text">
+    <aside className="doc-rail" aria-label="Comments and suggestions on the text">
+      {proposals.length > 0 && (
+        <section className="doc-proposals" aria-label="Suggestions">
+          <div className="doc-proposals-head">
+            <strong>Suggestions ({proposals.length})</strong>
+            {canEdit && proposals.length > 1 && (
+              <span className="doc-thread-actions">
+                <Button size="sm" variant="ghost" onClick={() => decideAll(true)}>
+                  Accept all
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => decideAll(false)}>
+                  Reject all
+                </Button>
+              </span>
+            )}
+          </div>
+          <ul className="doc-threads">
+            {proposals.map((s) => (
+              <li key={s.id} className="doc-thread doc-proposal">
+                <button type="button" className="doc-proposal-what" onClick={() => showProposal(s)}>
+                  {s.deleted && s.inserted ? (
+                    <>
+                      Replace <del className="doc-del">{s.deleted}</del> with <ins className="doc-ins">{s.inserted}</ins>
+                    </>
+                  ) : s.inserted ? (
+                    <>
+                      Add <ins className="doc-ins">{s.inserted}</ins>
+                    </>
+                  ) : (
+                    <>
+                      Remove <del className="doc-del">{s.deleted}</del>
+                    </>
+                  )}
+                </button>
+                <div className="doc-thread-head">
+                  <strong>{s.name || "Someone"}</strong>
+                  {s.at && (
+                    <time className="faint" dateTime={s.at}>
+                      {new Date(s.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                    </time>
+                  )}
+                </div>
+                {canEdit && (
+                  <div className="doc-thread-actions">
+                    <Button size="sm" variant="ghost" onClick={() => decide(s, false)}>
+                      Reject
+                    </Button>
+                    <Button size="sm" onClick={() => decide(s, true)}>
+                      Accept
+                    </Button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {draft && (
         <section className="doc-thread is-active" aria-label="New comment">
           <blockquote className="doc-thread-quote">{draft.quote}</blockquote>
