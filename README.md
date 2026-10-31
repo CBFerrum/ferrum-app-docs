@@ -5,7 +5,7 @@
   <img alt="Ferrum Docs" src="docs/assets/banner-light.svg" width="100%">
 </picture>
 
-[![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.5.0-2f5bea?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
+[![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.5.2-2f5bea?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
 
 **A native app for [Ferrum](https://github.com/CBFerrum/Ferrum), the open-source, AI-first business platform.**
 
@@ -25,7 +25,7 @@ trash and guest links are Drive's, and AI agents draft and add to them over Ferr
 
 | At a glance | |
 |---|---|
-| 📦 Version | `0.5.0` |
+| 📦 Version | `0.5.2` |
 | 🧱 Platform | Ferrum `>=0.3.2, <0.4` |
 | 🔗 Requires | drive `>=0.7` |
 | 🖥️ Interface | its own, at `/docs/` |
@@ -236,10 +236,10 @@ It builds on [ferrum-app-drive](https://github.com/CBFerrum/ferrum-app-drive).
 
 | Version | Highlights |
 |---|---|
+| **0.5.2** | Keeping unsaved changes fails safely: a browser that refuses the write at once (as some do when storage is full) no longer counts as having kept … |
+| **0.5.1** | When the browser cannot keep unsaved changes (its storage is full, or it refuses IndexedDB), the page says they are kept in this tab only and … |
 | **0.5.0** | Suggestions: a mode for editors, Editing or Suggesting. While suggesting, typing proposes: `insertion` and `deletion` marks carry who, when and an … |
 | **0.4.0** | Comments on the text: select words and press Comment (Ctrl+Alt+M), with comment access only too. The words are marked and the thread sits beside … |
-| **0.3.0** | Images in documents: from the toolbar, pasted or dropped in, kept by the document in Drive and shown from there, with a description for screen … |
-| **0.2.1** | The family's navigation (Drive, Sheets, Slides, PDF, Docs) has each entry's icon and colour, and each document in the lists has the document icon. |
 
 Every version is in [CHANGELOG.md](CHANGELOG.md).
 
