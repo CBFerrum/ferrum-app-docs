@@ -236,9 +236,9 @@ It builds on [ferrum-app-drive](https://github.com/CBFerrum/ferrum-app-drive).
 
 | Version | Highlights |
 |---|---|
-| **0.5.0** | Suggestions : a mode for editors, Editing or Suggesting. While suggesting, typing proposes: `insertion` and `deletion` marks carry who, when and … |
-| **0.4.0** | Comments on the text : select words and press Comment (Ctrl+Alt+M), with comment access only too. The words are marked and the thread sits beside … |
-| **0.3.0** | Images in documents : from the toolbar, pasted or dropped in, kept by the document in Drive and shown from there, with a description for screen … |
+| **0.5.0** | Suggestions: a mode for editors, Editing or Suggesting. While suggesting, typing proposes: `insertion` and `deletion` marks carry who, when and an … |
+| **0.4.0** | Comments on the text: select words and press Comment (Ctrl+Alt+M), with comment access only too. The words are marked and the thread sits beside … |
+| **0.3.0** | Images in documents: from the toolbar, pasted or dropped in, kept by the document in Drive and shown from there, with a description for screen … |
 | **0.2.1** | The family's navigation (Drive, Sheets, Slides, PDF, Docs) has each entry's icon and colour, and each document in the lists has the document icon. |
 
 Every version is in [CHANGELOG.md](CHANGELOG.md).
