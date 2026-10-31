@@ -206,6 +206,15 @@ cargo test
 `FERRUM_DOCS_TEST_DATABASE_URL` overrides the database URL.
 
 
+Its tests also build on [ferrum-app-drive](https://github.com/CBFerrum/ferrum-app-drive), which Cargo takes from GitHub.
+To work on it alongside this app, clone it into the same folder and add to the same file:
+
+```toml
+[patch."https://github.com/CBFerrum/ferrum-app-drive"]
+ferrum-app-drive = { path = "../ferrum-app-drive" }
+```
+
+
 The interface lives in `ui/` and builds with Ferrum-Frontend's packages:
 
 ```bash
@@ -228,9 +237,6 @@ ui/           its own interface (React + Vite), built into ui/dist
 tests/        integration tests against a real PostgreSQL
 CHANGELOG.md  what changed in each version
 ```
-
-
-It builds on [ferrum-app-drive](https://github.com/CBFerrum/ferrum-app-drive).
 
 ## Changelog
 
