@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Comments on the text (Ferrum collaboration.md, C3; Drive 0.10.0): select words and press Comment
+  (Ctrl+Alt+M), with comment access only too. The words are marked and the thread sits beside the
+  page, in the order of the text, with replies (@mentions), Resolve and Reopen. A click in marked
+  words shows their thread, and the mark moves with everyone's typing. A thread whose words were
+  deleted says so. Others' comments arrive every 20 seconds.
+
 ## 0.3.0
 
 - Images in documents (Ferrum collaboration.md, C3; Drive 0.9.0): from the toolbar, pasted or

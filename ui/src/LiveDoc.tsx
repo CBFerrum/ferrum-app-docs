@@ -43,6 +43,8 @@ import { api, download, errorMessage, initials, openPrint, shell } from "@ferrum
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMetaIndex } from "@ferrum/records";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
+import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
+import { DocComments, anchorOf, textThreads } from "./comments";
 import { DocImage, IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { usePresence } from "./presence";
@@ -125,6 +127,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const title = docTitle(info.name);
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
+  // Comments on the text: one being written, and the thread in view (a click in its text shows it).
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [active, setActive] = useState<string | null>(null);
+  const activate = useRef<(id: string | null) => void>(() => undefined);
+  activate.current = setActive;
 
   const editor = useEditor(
     {
@@ -138,6 +145,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         TextAlign.configure({ types: ["heading", "paragraph"] }),
         Placeholder.configure({ placeholder: "Start typing, or use # for a heading and - for a list" }),
         DocImage.configure({ file }),
+        DocComments.configure({ onActivate: (id) => activate.current(id) }),
         Collaboration.configure({ document: session.doc, field: "default" }),
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
       ],
@@ -204,6 +212,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   }, [state.unsaved, session.keeps]);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === "KeyM") {
+        e.preventDefault();
+        startRef.current();
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         toast(state.unsaved ? "Saving: changes are saved as you type" : "Saved: changes are saved as you type");
@@ -232,6 +245,19 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     }
   };
   const canEdit = allows(info.permission, "Edit");
+  const canComment = allows(info.permission, "Comment") && !!space.data;
+  const selected = useEditorState({ editor, selector: ({ editor: e }) => !!e && !e.state.selection.empty }) ?? false;
+  const threads = useQuery({ ...commentsQuery(file), enabled: state.loaded });
+  const railShown = !!draft || textThreads(threads.data ?? []).length > 0;
+  /** A comment on the selected words (Ctrl+Alt+M). */
+  const startComment = () => {
+    const a = editor ? anchorOf(editor.state) : null;
+    if (!a) return toast("Select the words to comment on");
+    setActive(null);
+    setDraft(a);
+  };
+  const startRef = useRef(startComment);
+  startRef.current = startComment;
   // Back where the person came from: Docs, or the document's folder in Drive (another app's page).
   const fromDocs = (location.state as { from?: string } | null)?.from === "docs";
   const toDrive = info.parent ? `/drive/${encodeURIComponent(info.parent)}?item=${encodeURIComponent(file)}` : "/drive/";
@@ -281,6 +307,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
               Share
             </Button>
           )}
+          {canComment && (
+            <Button size="sm" disabled={!selected} onClick={startComment} title="Comment on the selected words (Ctrl+Alt+M)">
+              Comment
+            </Button>
+          )}
           <Button size="sm" aria-pressed={details} onClick={() => void toggleDetails()}>
             Comments and history
           </Button>
@@ -307,11 +338,24 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{state.error}</Alert>}
       {editor && editable && <Toolbar editor={editor} addImages={(files) => addImages(editor, file, files)} />}
-      <div className="doc-main">
+      <div className={`doc-main${railShown ? " doc-main-rail" : ""}`}>
         <div className="doc-paper">
           {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
           <EditorContent editor={editor} hidden={!state.loaded} />
         </div>
+        {editor && state.loaded && (
+          <CommentRail
+            editor={editor}
+            file={file}
+            canComment={canComment}
+            canManage={allows(info.permission, "Manage")}
+            act={act}
+            draft={draft}
+            onDraftDone={() => setDraft(null)}
+            active={active}
+            setActive={setActive}
+          />
+        )}
       </div>
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}
     </div>

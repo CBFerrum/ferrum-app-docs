@@ -33,6 +33,11 @@ through the shell.
   PNG, JPEG, GIF or WebP up to 10 MB). The document keeps them, and "Describe image" gives each one
   its text for screen readers. Pictures in pasted web pages are left out: only a document's own
   images move between documents.
+* **Comments on the text**: select words and press Comment (Ctrl+Alt+M), as anyone who may comment,
+  even with the text read-only for them. The words are marked, the thread sits beside the page in the
+  order of the text, replies take @mentions, and Resolve puts a thread away (Resolved, to reopen).
+  The mark moves with everyone's typing. Drive keeps the threads (Drive 0.10: anchors, replies,
+  `resolve_comment`), and its panel lists them with the words they are on.
 * **Downloads**: a web page, a PDF or a Word file (`.docx`, images, lists and tables inside), or
   the text.
 * **Offline**: changes typed without a connection go to the server when it is back. They are kept in

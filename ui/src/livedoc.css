@@ -346,3 +346,99 @@ input.doc-title:focus {
   outline: 2px solid var(--ferrum-primary, #2563eb);
   outline-offset: 2px;
 }
+
+/* Comments on the text: marked where they are, and their threads beside the page. */
+.doc-main-rail {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+@media (max-width: 1000px) {
+  .doc-main-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.doc-body .doc-comment {
+  background: color-mix(in srgb, #facc15 28%, transparent);
+  border-bottom: 2px solid color-mix(in srgb, #eab308 70%, transparent);
+  cursor: pointer;
+}
+.doc-body .doc-comment-active {
+  background: color-mix(in srgb, #facc15 55%, transparent);
+}
+.doc-rail {
+  position: sticky;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100dvh - 120px);
+  overflow: auto;
+}
+.doc-threads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.doc-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.doc-thread.is-active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.doc-thread.is-resolved {
+  opacity: 0.8;
+}
+.doc-thread-quote {
+  display: block;
+  margin: 0;
+  padding: 0 0 0 8px;
+  border: 0;
+  border-left: 3px solid #eab308;
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.85em;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.doc-thread-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.85em;
+}
+.doc-thread-body {
+  margin: 2px 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.doc-thread-link {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.doc-thread-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.doc-resolved summary {
+  cursor: pointer;
+  color: var(--muted-foreground);
+}
