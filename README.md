@@ -1,69 +1,249 @@
-# Ferrum Docs
+<div align="center">
 
-A native app for [Ferrum](https://github.com/CBFerrum/Ferrum), the open-source, AI-first ERP.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+  <img alt="Ferrum Docs" src="docs/assets/banner-light.svg" width="100%">
+</picture>
 
-- A home for documents in the web app (Docs): recent, shared with you, starred and all of them,
-  each showing who is in it now
-- Documents everyone with access edits at once, with each other's cursors and names, saved as they
-  type: Drive's live documents (`.fdoc` files), so sharing, versions, comments, trash and guest
-  links are Drive's
-- Templates to start from: meeting notes, project brief, weekly update, decision record, product
-  requirements and one-on-one come with it; Docs Managers change them, add their own, or make one
-  from any document they can read
-- Search by what documents say, with the words found shown in context
-- AI agents draft and add to documents over Ferrum's MCP server: New Document on a template, and
-  Drive's `create_document`, `read_document` and `append_to_document` in Markdown. What they add
-  appears at once for everyone who has the document open
-- `packages/docs/README.md` documents the template entity, its action and the roles
+[![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.5.0-2f5bea?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
+
+**A native app for [Ferrum](https://github.com/CBFerrum/Ferrum), the open-source, AI-first business platform.**
+
+[Overview](#overview) · [Highlights](#highlights) · [Screenshots](#screenshots) · [How it works](#how-it-works) · [Data model](#data-model) · [Install](#install) · [Develop](#develop) · [Changelog](#changelog)
+
+</div>
+
+---
+
+## Overview
+
+Ferrum Docs is the home for documents written together: recent, shared and starred documents,
+each showing who is in it now; templates to start from; search by what documents say; and
+comments and suggestions on the text. Documents are Drive's live documents, so sharing, versions,
+trash and guest links are Drive's, and AI agents draft and add to them over Ferrum's MCP server.
+
+
+| At a glance | |
+|---|---|
+| 📦 Version | `0.5.0` |
+| 🧱 Platform | Ferrum `>=0.3.2, <0.4` |
+| 🔗 Requires | drive `>=0.7` |
+| 🖥️ Interface | its own, at `/docs/` |
+| 🗃️ Records | 1 entities in 1 package |
+| 👥 Roles | 2: Docs User, Docs Manager |
+| 📊 Reports | 0 |
+| 🧪 Tests | 3 Rust tests, 3 interface test files |
+
+
+## Highlights
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 👥 Written together
+Everyone's cursors and names, saved as they type.
+
+</td>
+<td width="50%" valign="top">
+
+### 🧩 Templates
+Meeting notes, project brief, weekly update, decision record, PRD and one-on-one, plus your own.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🔎 Search by content
+Find documents by what they say, with the words shown in context.
+
+</td>
+<td width="50%" valign="top">
+
+### 💬 Comments and suggestions
+Discuss and propose changes on the text itself.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 🤖 AI agents
+Agents create, read and append in Markdown over MCP; what they add appears live.
+
+</td>
+<td width="50%" valign="top">
+
+### 🗂️ Drive underneath
+Sharing, versions, trash and guest links come from Drive.
+
+</td>
+</tr>
+</table>
+
+## Screenshots
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/docs-dark.webp">
+  <img alt="Docs: templates to start from and recent documents." src="docs/assets/docs-light.webp" width="100%">
+</picture>
+
+<p align="center"><sub>Docs: templates to start from and recent documents.</sub></p>
+
+> [!TIP]
+> The screenshots follow your GitHub theme: switch between light and dark to see both.
+
+## How it works
+
+### Live editing
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor A as Asha
+    actor B as Ravi
+    participant D as Live document (Drive)
+    participant AI as AI agent (MCP)
+    A->>D: types
+    D-->>B: Asha's change and cursor, at once
+    B->>D: suggests an edit
+    AI->>D: append_to_document (Markdown)
+    D-->>A: the agent's text appears
+    D-->>B: the agent's text appears
+```
+
+### Inside Ferrum
+
+```mermaid
+flowchart LR
+    subgraph Browser
+        UI["Its interface<br/><small>/docs/</small>"]
+        BAR["Ferrum bar<br/><small>launcher · search · bell</small>"]
+    end
+    subgraph Server["Ferrum server"]
+        API["REST · MCP · live"]
+        K["Kernel<br/><small>permissions · row-level security · audit</small>"]
+        APP["Docs<br/><small>1 entities · 2 roles</small>"]
+        OB[("Outbox")]
+    end
+    DB[("PostgreSQL")]
+    UI --> API --> K --> DB
+    BAR --> API
+    K <--> APP
+    K --> OB --> EV["Notifications · webhooks<br/>automations"]
+    APP -. requires .-> D0["drive >=0.7"]
+    classDef app fill:#2f5bea,color:#fff,stroke:#2f5bea
+    class APP app
+```
+
+Everything Docs adds is ordinary Ferrum metadata and Rust: its records get lists, forms,
+search, permissions, an audit trail, exports and the REST and MCP APIs for free, so AI agents work
+with them under the same rules as people.
+
+### What it adds to Ferrum
+
+| Where | What |
+|---|---|
+| 🚀 Launcher | **Docs** at `/docs/` |
+| ➕ Create menu | Document |
+
+## Data model
+
+The main records and how they connect (1 entities in all; `packages/` has every field).
+
+```mermaid
+erDiagram
+    DocsTemplate {
+        string name PK
+        string category
+    }
+```
+
+### Roles
+
+| Role | What it is for | Entities |
+|---|---|---|
+| **Docs User** | Writes documents in Docs: a Drive space of their own (as a Drive User has), the documents shared with them, and the workspace's templates to start from. What they may do with each document is Drive's sharing. | 3 |
+| **Docs Manager** | Keeps the workspace's document templates, and makes new ones from documents. | 1 |
 
 ## Install
 
-Workspace administrators install it from **Apps** in Ferrum, after Drive (0.7 or later); it ships
-in the official Ferrum server image. Self-hosters building their own image enable the `docs`
-feature of the server.
+Workspace administrators install it from **Apps** (`/store/`) in Ferrum; it ships in the
+official Ferrum server image. It needs **drive** `>=0.7` installed first. Self-hosters building their own image enable the
+`docs` feature of the server. Everything it adds is also available to AI agents over
+Ferrum's MCP server, within each person's permissions.
 
-## Its interface
+## Develop
 
-Docs' interface (`ui/`) is served by Ferrum under its bar at `/docs/`, with the editor everyone types
-in at once at `/docs/d/{file}`; it is in Drive's family, Workspace (Ferrum docs/plan/apps-ui.md).
-Sharing a document is Drive's share dialog and comments and history are Drive's panel beside it, both
-through the shell.
+Clone it next to the platform:
 
-* **Images**: the toolbar's Image button, or pictures pasted or dropped in, go up to Drive (Drive 0.9:
-  PNG, JPEG, GIF or WebP up to 10 MB). The document keeps them, and "Describe image" gives each one
-  its text for screen readers. Pictures in pasted web pages are left out: only a document's own
-  images move between documents.
-* **Comments on the text**: select words and press Comment (Ctrl+Alt+M), as anyone who may comment,
-  even with the text read-only for them. The words are marked, the thread sits beside the page in the
-  order of the text, replies take @mentions, and Resolve puts a thread away (Resolved, to reopen).
-  The mark moves with everyone's typing. Drive keeps the threads (Drive 0.10: anchors, replies,
-  `resolve_comment`), and its panel lists them with the words they are on.
-* **Suggestions**: switch the toolbar's mode to Suggesting (editors) and typing proposes. New words
-  show green and removed ones red and struck through, signed and timed; one change is one suggestion,
-  and typing over words you struck makes it a replacement. Whoever may edit accepts or rejects each,
-  or all, beside the page; everyone sees them at once. While suggesting, deletions are made by the
-  editor itself (the browser says what it would delete), and formatting and structure are refused: a
-  mark cannot carry them. A Word download keeps open suggestions as tracked changes.
-* **Downloads**: a web page, a PDF or a Word file (`.docx`, images, lists and tables inside), or
-  the text.
-* **Offline**: changes typed without a connection go to the server when it is back. They are kept in
-  the browser (IndexedDB, per person and document, for 30 days), so closing or reloading the tab
-  loses nothing; the next time that person opens the document they are sent, if they may still edit
-  it.
-
-`ui/dist` is committed: the crate embeds it, so the server carries the interface of the version it was
-built with. With Ferrum-Frontend checked out at `../ferrum/web`:
-
+```text
+work/
+├── ferrum/            https://github.com/CBFerrum/Ferrum (with Ferrum-Frontend cloned into ferrum/web)
+└── ferrum-app-docs/
 ```
+
+Point the platform dependencies at your checkout (this file is git-ignored):
+
+```toml
+# .cargo/config.toml
+[patch."https://github.com/CBFerrum/Ferrum"]
+ferrum-apps = { path = "../ferrum/crates/apps" }
+ferrum-domain = { path = "../ferrum/crates/domain" }
+ferrum-kernel = { path = "../ferrum/crates/kernel" }
+ferrum-meta = { path = "../ferrum/crates/meta" }
+```
+
+The tests need PostgreSQL with an ordinary (non-superuser) role, so row-level security
+applies:
+
+```bash
+createuser ferrum --pwprompt && createdb -O ferrum ferrum_docs_test
+cargo test
+```
+
+`FERRUM_DOCS_TEST_DATABASE_URL` overrides the database URL.
+
+
+The interface lives in `ui/` and builds with Ferrum-Frontend's packages:
+
+```bash
 cd ui
-npm run build       # into dist/, stamped with its sources (commit dist/)
-npm run check       # CI: dist/ was built from ui/ as it is
-npm run typecheck && npm test
+npm run build      # ui/dist, checked against the size budget
+npm test
 ```
 
-## Development
+With a development server started with `FERRUM_DEV_UI=1`, `ferrum-app dev --ui` serves the pages
+from Vite behind the real bar and session, with hot reload.
 
-The crate builds against Ferrum's and Drive's `main` branches; a git-ignored
-`.cargo/config.toml` can point both at sibling checkouts. The test needs PostgreSQL:
-`FERRUM_DOCS_TEST_DATABASE_URL` (default `postgres://ferrum:ferrum@localhost:5432/ferrum_docs_test`,
-owned by a role that is not a superuser; the test resets it).
+
+### Project layout
+
+```text
+app.yaml      the manifest: id, version, requirements, what it adds to Ferrum
+packages/     metadata: entities, roles, reports, workflows, print formats
+src/          the app's logic in Rust: hooks, actions, endpoints, upkeep jobs
+ui/           its own interface (React + Vite), built into ui/dist
+tests/        integration tests against a real PostgreSQL
+CHANGELOG.md  what changed in each version
+```
+
+
+It builds on [ferrum-app-drive](https://github.com/CBFerrum/ferrum-app-drive).
+
+## Changelog
+
+| Version | Highlights |
+|---|---|
+| **0.5.0** | Suggestions : a mode for editors, Editing or Suggesting. While suggesting, typing proposes: `insertion` and `deletion` marks carry who, when and … |
+| **0.4.0** | Comments on the text : select words and press Comment (Ctrl+Alt+M), with comment access only too. The words are marked and the thread sits beside … |
+| **0.3.0** | Images in documents : from the toolbar, pasted or dropped in, kept by the document in Drive and shown from there, with a description for screen … |
+| **0.2.1** | The family's navigation (Drive, Sheets, Slides, PDF, Docs) has each entry's icon and colour, and each document in the lists has the document icon. |
+
+Every version is in [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[AGPL-3.0-only](LICENSE), like the platform. Part of [Ferrum](https://github.com/CBFerrum/Ferrum) ·
+[Report an issue](https://github.com/CBFerrum/ferrum-app-docs/issues)
