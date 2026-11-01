@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { api, download, errorMessage, initials, openPrint, shell } from "@ferrum/client";
+import { api, download, errorMessage, initials, openPrint, saveBlob, shell } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
@@ -290,6 +290,20 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const exportAs = async (format: "html" | "pdf" | "docx" | "txt") => {
     try {
       await download(content, `${title}.${format}`, { format });
+      if (format === "txt") suggestionsNote();
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    }
+  };
+  /** Text and Markdown carry the words only, so suggestions waiting show up as both the old and the new. */
+  const suggestionsNote = () => {
+    if (pending > 0) toast(`${pending} ${pending === 1 ? "suggestion is" : "suggestions are"} still waiting: the file has the words as suggested and as they were`, "info");
+  };
+  const exportMarkdown = async () => {
+    try {
+      const r = await api.get<{ content: string }>("/api/app/drive/read_document", { file, format: "markdown" });
+      saveBlob(new Blob([r.content], { type: "text/markdown;charset=utf-8" }), `${title}.md`);
+      suggestionsNote();
     } catch (e) {
       toast(errorMessage(e), "error");
     }
@@ -417,7 +431,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                   <MenuItem onSelect={item(() => exportAs("pdf"))}>Download as PDF</MenuItem>
                   <MenuItem onSelect={item(() => exportAs("docx"))}>Download as Word (.docx)</MenuItem>
                   <MenuItem onSelect={item(() => exportAs("txt"))}>Download as text (.txt)</MenuItem>
+                  <MenuItem onSelect={item(exportMarkdown)}>Download as Markdown (.md)</MenuItem>
                   <MenuItem onSelect={item(() => openPrint(`${content}?format=html&inline=1`).catch((e: unknown) => toast(errorMessage(e), "error")))}>Print</MenuItem>
+                  <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>Version history</MenuItem>
                   {space.data && info.parent && <MenuItem onSelect={item(copy)}>Make a copy</MenuItem>}
                   {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>Save as a template</MenuItem>}
                 </>

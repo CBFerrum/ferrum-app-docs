@@ -49,6 +49,7 @@ const router = createBrowserRouter(
         { index: true, element: <DocsPage /> },
         { path: "new", element: <NewDocument /> },
         { path: "d/:file", lazy: () => import("./LiveDoc").then((m) => ({ Component: m.LiveDocPage })) },
+        { path: "d/:file/history", lazy: () => import("./History").then((m) => ({ Component: m.HistoryPage })) },
         { path: "*", element: <NotFound /> },
       ],
     },
