@@ -5,8 +5,8 @@
 // document, so everyone sees them at once, and the server's exports show them (HTML ins/del, Word's
 // tracked changes).
 //
-// Suggesting tracks words. Formatting and structure (lists, headings, a paragraph joined) are refused
-// while suggesting: a mark cannot carry them. A new paragraph (Enter) is let through.
+// Suggesting tracks words. Formatting and structure (lists, headings, a paragraph joined, a mention)
+// are refused while suggesting: a mark cannot carry them. A new paragraph (Enter) is let through.
 
 import { Extension, Mark, mergeAttributes } from "@tiptap/core";
 import { Fragment, type MarkType, type Node as PMNode, Slice } from "@tiptap/pm/model";
@@ -87,6 +87,16 @@ function keep(slice: Slice, me: Suggester, insertion: MarkType): Slice | null {
   return kept ? new Slice(Fragment.from(left), 0, 0) : null;
 }
 
+/** Whether a mention is among `content`: a mention is a unit, not words, so it is not suggested. */
+function holdsMention(content: Fragment): boolean {
+  let found = false;
+  content.descendants((n) => {
+    if (n.type.name === "mention") found = true;
+    return !found;
+  });
+  return found;
+}
+
 /** Turns an editor's change into a suggestion (see the top of this file). */
 function suggest(trs: readonly Transaction[], state: EditorState, me: Suggester): Transaction | null {
   const insertion = state.schema.marks.insertion!;
@@ -101,6 +111,7 @@ function suggest(trs: readonly Transaction[], state: EditorState, me: Suggester)
     const { from, to, slice } = step as ReplaceStep & { from: number; to: number; slice: Slice };
     // A new paragraph is fine; joining two (a paragraph boundary removed) is not.
     const removed = tr.docs[i]!.slice(from, to);
+    if (holdsMention(removed.content) || holdsMention(slice.content)) return false;
     return removed.openStart === removed.openEnd || (slice.size === 0 && removed.content.childCount === 0);
   });
   if (!words) {

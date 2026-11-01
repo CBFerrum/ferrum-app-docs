@@ -3,6 +3,7 @@ import type { Node as PMNode } from "@tiptap/pm/model";
 import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { StarterKit } from "@tiptap/starter-kit";
 import { describe, expect, it } from "vitest";
+import { Mention } from "./mention";
 import { BACKWARD, Deletion, Insertion, setSuggesting, settle, suggestPlugin, suggestionsIn } from "./suggest";
 
 const schema = getSchema([StarterKit, Insertion, Deletion]);
@@ -76,6 +77,23 @@ describe("suggestions", () => {
     expect(bold.doc.eq(state.doc)).toBe(true);
     await Promise.resolve();
     expect(refused()).toBe(1);
+  });
+
+  it("refuses to add or take away a mention: it is one unit, not words", async () => {
+    const withMentions = getSchema([StarterKit, Insertion, Deletion, Mention]);
+    const mention = withMentions.node("mention", { kind: "person", id: "u1", entity: null }, [withMentions.text("@Ben")]);
+    const doc = withMentions.node("doc", null, [withMentions.node("paragraph", null, [withMentions.text("Hi "), mention, withMentions.text(" there")])]);
+    let refused = 0;
+    let state = EditorState.create({ schema: withMentions, doc, plugins: [suggestPlugin(() => refused++)] });
+    state = state.apply(setSuggesting(state, true, ana));
+    // Taking it away (it spans positions 4 to 10) changes nothing but says so.
+    const removed = state.apply(state.tr.delete(4, 10));
+    expect(removed.doc.eq(doc)).toBe(true);
+    // Adding one is refused the same way.
+    const added = state.apply(state.tr.insert(1, mention));
+    expect(added.doc.eq(doc)).toBe(true);
+    await Promise.resolve();
+    expect(refused).toBe(2);
   });
 
   it("is accepted or rejected as a whole", () => {

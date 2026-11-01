@@ -151,7 +151,7 @@
 }
 .docs-snippet mark {
   color: inherit;
-  background: light-dark(#fff3b0, #5c4a00);
+  background: var(--warning-soft);
   border-radius: 2px;
 }
 .docs-meta {

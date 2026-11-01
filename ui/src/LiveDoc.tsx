@@ -7,13 +7,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Collaboration } from "@tiptap/extension-collaboration";
 import { CollaborationCaret } from "@tiptap/extension-collaboration-caret";
-import { Highlight } from "@tiptap/extension-highlight";
-import { TaskItem, TaskList } from "@tiptap/extension-list";
-import { TableKit } from "@tiptap/extension-table";
-import { TextAlign } from "@tiptap/extension-text-align";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import { StarterKit } from "@tiptap/starter-kit";
 import {
   AlignCenter,
   AlignLeft,
@@ -37,18 +32,23 @@ import {
   Undo2,
   type LucideIcon,
 } from "lucide-react";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
 import { api, download, errorMessage, initials, openPrint, shell } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
-import { can, useMetaIndex } from "@ferrum/records";
+import { can, useMe, useMetaIndex } from "@ferrum/records";
+import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
 import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
 import { DocComments, anchorOf, textThreads } from "./comments";
-import { Deletion, Insertion, Suggestions, setSuggesting, suggestionsIn } from "./suggest";
-import { DocImage, IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
+import { IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
+import { openMention } from "./mention";
+import { Menus } from "./menus";
+import { EditorMenus, type MenuApi, NO_MENU, useMentionNotices } from "./EditorMenus";
 import { usePresence } from "./presence";
+import { documentExtensions } from "./schema";
+import { Suggestions, setSuggesting, suggestionsIn } from "./suggest";
 import "./livedoc.css";
 
 /** Drive's panel of a file's comments and history (a contextual side panel of Drive). */
@@ -114,7 +114,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const navigate = useNavigate();
   const qc = useQueryClient();
   const state = useSyncExternalStore(session.subscribe, session.getState);
-  const people = usePeople(session);
+  const here = useHere(session);
   const space = useQuery({
     queryKey: ["drive", "space"],
     queryFn: ({ signal }) => api.get<{ id: string; root_folder: string }>("/api/app/drive/space", undefined, signal),
@@ -133,23 +133,26 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const [active, setActive] = useState<string | null>(null);
   const activate = useRef<(id: string | null) => void>(() => undefined);
   activate.current = setActive;
+  // Suggesting: what this person types is proposed, signed with their name.
+  const [suggesting, setMode] = useState(false);
+  // The menus at the caret open while the text takes typing; the open one answers for the keys.
+  const typing = useRef(false);
+  typing.current = editable && !suggesting;
+  const menu = useRef<MenuApi>(NO_MENU);
+  const listId = useId();
+  // Pictures are chosen from one hidden field, by the toolbar and by the `/` menu.
+  const picker = useRef<HTMLInputElement>(null);
+  const [adding, setAdding] = useState(false);
 
   const editor = useEditor(
     {
       editable: false,
       extensions: [
-        StarterKit.configure({ undoRedo: false, link: { openOnClick: false, autolink: true, defaultProtocol: "https" } }),
-        Highlight,
-        TaskList,
-        TaskItem.configure({ nested: true }),
-        TableKit.configure({ table: { resizable: false } }),
-        TextAlign.configure({ types: ["heading", "paragraph"] }),
-        Placeholder.configure({ placeholder: "Start typing, or use # for a heading and - for a list" }),
-        DocImage.configure({ file }),
+        ...documentExtensions(file),
+        Placeholder.configure({ placeholder: "Type / for blocks and @ to mention someone, or just start writing" }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
-        Insertion,
-        Deletion,
         Suggestions.configure({ onRefused: () => toast("While suggesting, only words change: switch to Editing to change formatting or structure") }),
+        Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
         Collaboration.configure({ document: session.doc, field: "default" }),
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
       ],
@@ -173,12 +176,18 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           void addImages(ed, file, images);
           return true;
         },
-        // Links open with Ctrl or ⌘ held (a plain click places the cursor in them).
-        handleClick: (_view, _pos, event) => {
-          const a = (event.target as HTMLElement | null)?.closest("a[href]");
-          if (!a || !(event.metaKey || event.ctrlKey)) return false;
-          window.open(a.getAttribute("href") ?? "", "_blank", "noopener,noreferrer");
-          return true;
+        // Links and the records named in the text open with Ctrl or ⌘ held (a plain click places the
+        // cursor in a link and selects a mention); where nothing is being edited, a click opens a record.
+        handleClick: (view, _pos, event) => {
+          const target = event.target as HTMLElement | null;
+          const a = target?.closest("a[href]");
+          if (a && (event.metaKey || event.ctrlKey)) {
+            window.open(a.getAttribute("href") ?? "", "_blank", "noopener,noreferrer");
+            return true;
+          }
+          const m = target?.closest<HTMLElement>('[data-mention="record"]');
+          if (m && (!view.editable || event.metaKey || event.ctrlKey)) return openMention({ kind: "record", id: m.dataset.id ?? null, entity: m.dataset.entity ?? null });
+          return false;
         },
       },
     },
@@ -230,7 +239,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     return () => window.removeEventListener("keydown", onKey);
   }, [state.unsaved]);
 
-  const act = (action: string, body: Record<string, unknown>) => api.post<{ id: string }>(`/api/v1/DriveSpace/${space.data?.id}/actions/${action}`, body);
+  const act = (action: string, body: Record<string, unknown>) => api.post<{ id: string; mentioned?: string[] }>(`/api/v1/DriveSpace/${space.data?.id}/actions/${action}`, body);
   const content = `/api/app/drive/files/${file}/content`;
   const exportAs = async (format: "html" | "pdf" | "docx" | "txt") => {
     try {
@@ -250,10 +259,17 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   const canEdit = allows(info.permission, "Edit");
   const canComment = allows(info.permission, "Comment") && !!space.data;
+  const account = useMe().data;
+  // People picked from `@` are told, by a comment, when they are still mentioned a few seconds on.
+  const notified = useMentionNotices(editor, file, account?.user.email, space.data ? act : null, space.data ? `/api/v1/DriveSpace/${space.data.id}/actions/add_comment` : null);
+  const pickImages = () => picker.current?.click();
+  const addPictures = (files: File[]) => {
+    if (!editor || !files.length) return;
+    setAdding(true);
+    void addImages(editor, file, files).finally(() => setAdding(false));
+  };
   const selected = useEditorState({ editor, selector: ({ editor: e }) => !!e && !e.state.selection.empty }) ?? false;
   const threads = useQuery({ ...commentsQuery(file), enabled: state.loaded });
-  // Suggesting: what this person types is proposed, signed with their name.
-  const [suggesting, setMode] = useState(false);
   useEffect(() => {
     if (editor && !editor.isDestroyed) editor.view.dispatch(setSuggesting(editor.state, suggesting && editable, state.me ? { id: state.me.id, name: state.me.name } : null));
   }, [editor, suggesting, editable, state.me]);
@@ -310,7 +326,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           {statusText(state, session.keeps)}
         </span>
         {state.loaded && state.access === "read" && <Badge>View only</Badge>}
-        <People people={people} />
+        <People people={here} />
         <div className="doc-bar-end">
           {allows(info.permission, "Manage") && canShare && (
             <Button size="sm" onClick={share}>
@@ -347,11 +363,12 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </div>
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{state.error}</Alert>}
-      {editor && editable && <Toolbar editor={editor} addImages={(files) => addImages(editor, file, files)} suggesting={suggesting} setSuggesting={setMode} />}
+      {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
       <div className={`doc-main${railShown ? " doc-main-rail" : ""}`}>
         <div className="doc-paper">
           {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
           <EditorContent editor={editor} hidden={!state.loaded} />
+          {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
         </div>
         {editor && state.loaded && (
           <CommentRail
@@ -368,13 +385,25 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           />
         )}
       </div>
+      <input
+        ref={picker}
+        type="file"
+        accept={IMAGE_TYPES.join(",")}
+        multiple
+        hidden
+        onChange={(e) => {
+          const files = imageFiles(e.target.files);
+          e.target.value = "";
+          addPictures(files);
+        }}
+      />
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}
     </div>
   );
 }
 
 /** Everyone else in the document now, one entry per person. */
-function usePeople(session: CoeditSession) {
+function useHere(session: CoeditSession) {
   const [people, setPeople] = useState(() => othersIn(session.awareness));
   useEffect(() => {
     const changed = () => setPeople(othersIn(session.awareness));
@@ -461,12 +490,14 @@ const STYLES = [
 
 function Toolbar({
   editor,
-  addImages,
+  pickImages,
+  adding,
   suggesting,
   setSuggesting: setMode,
 }: {
   editor: Editor;
-  addImages: (files: File[]) => Promise<void>;
+  pickImages: () => void;
+  adding: boolean;
   suggesting: boolean;
   setSuggesting: (on: boolean) => void;
 }) {
@@ -485,6 +516,7 @@ function Toolbar({
       ordered: e.isActive("orderedList"),
       task: e.isActive("taskList"),
       quote: e.isActive("blockquote"),
+      callout: e.isActive("blockquote") ? calloutKind(e.getAttributes("blockquote").callout) : null,
       codeBlock: e.isActive("codeBlock"),
       table: e.isActive("table"),
       left: e.isActive({ textAlign: "left" }),
@@ -497,8 +529,6 @@ function Toolbar({
   });
   const [linking, setLinking] = useState(false);
   const [describing, setDescribing] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const picker = useRef<HTMLInputElement>(null);
   const run = () => editor.chain().focus();
   return (
     <div className={`doc-toolbar${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label="Formatting">
@@ -540,20 +570,7 @@ function Toolbar({
       <Tool label="Highlight" icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
       <Tool label="Code" icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
       <Tool label={s.link ? "Edit link" : "Link"} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
-      <Tool label={adding ? "Adding the image…" : "Image"} icon={ImagePlus} disabled={adding} onClick={() => picker.current?.click()} />
-      <input
-        ref={picker}
-        type="file"
-        accept={IMAGE_TYPES.join(",")}
-        multiple
-        hidden
-        onChange={(e) => {
-          const files = imageFiles(e.target.files);
-          e.target.value = "";
-          setAdding(true);
-          void addImages(files).finally(() => setAdding(false));
-        }}
-      />
+      <Tool label={adding ? "Adding the image…" : "Image"} icon={ImagePlus} disabled={adding} onClick={pickImages} />
       {s.image && (
         <button type="button" className="doc-tool doc-tool-text" onMouseDown={(e) => e.preventDefault()} onClick={() => setDescribing(true)}>
           Describe image
@@ -564,6 +581,30 @@ function Toolbar({
       <Tool label="Numbered list" icon={ListOrdered} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
       <Tool label="Checklist" icon={ListChecks} active={s.task} onClick={() => run().toggleTaskList().run()} />
       <Tool label="Quote" icon={Quote} active={s.quote} onClick={() => run().toggleBlockquote().run()} />
+      {s.quote && (
+        <>
+          <label className="sr-only" htmlFor="doc-callout">
+            Quote style
+          </label>
+          <select
+            id="doc-callout"
+            className="doc-style"
+            value={s.callout ?? ""}
+            onChange={(e) => {
+              const kind: CalloutKind | null = calloutKind(e.target.value);
+              if (kind) run().setCallout(kind).run();
+              else run().unsetCallout().run();
+            }}
+          >
+            <option value="">Plain quote</option>
+            {CALLOUTS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label} callout
+              </option>
+            ))}
+          </select>
+        </>
+      )}
       <Tool label="Code block" icon={SquareCode} active={s.codeBlock} onClick={() => run().toggleCodeBlock().run()} />
       <Tool label="Divider" icon={Minus} onClick={() => run().setHorizontalRule().run()} />
       <Sep />
