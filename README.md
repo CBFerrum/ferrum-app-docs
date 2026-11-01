@@ -34,7 +34,7 @@ links are Drive's, and AI agents draft and add to them over Ferrum's MCP server.
 | 🗃️ Records | 1 entities in 1 package |
 | 👥 Roles | 2: Docs User, Docs Manager |
 | 📊 Reports | 0 |
-| 🧪 Tests | 3 Rust tests, 12 interface test files |
+| 🧪 Tests | 3 Rust tests, 13 interface test files |
 
 
 ## Highlights
