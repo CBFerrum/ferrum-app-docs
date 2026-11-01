@@ -74,11 +74,12 @@ export function changedFrom(changed: Changed, now = new Date()): string | undefi
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** The items who own, and when changed, the choices allow. */
+/** The items who own, and when changed, the choices allow. Folders are ways in, not results: they stay. */
 export function narrow(items: DocItem[], o: { owner: Owner; changed: Changed; me: string | undefined; now?: Date }): DocItem[] {
   const me = o.me?.toLowerCase();
   const since = o.changed === "any" ? null : dayStart(o.now ?? new Date(), o.changed === "today" ? 0 : Number(o.changed) - 1).getTime();
   return items.filter((i) => {
+    if (isFolder(i)) return true;
     if (o.owner !== "any" && me) {
       const mine = i.owner?.toLowerCase() === me;
       if (o.owner === "me" ? !mine : mine) return false;
@@ -89,8 +90,10 @@ export function narrow(items: DocItem[], o: { owner: Owner; changed: Changed; me
 
 /** The items in the order chosen; "default" keeps the server's (recent work first, newest share first). */
 export function ordered(items: DocItem[], sort: Sort): DocItem[] {
+  // A folder may come without a time of change: it counts as the oldest.
+  const time = (i: DocItem) => Date.parse(i.modified_at) || 0;
   if (sort === "name") return [...items].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true }));
-  if (sort === "changed") return [...items].sort((a, b) => Date.parse(b.modified_at) - Date.parse(a.modified_at));
+  if (sort === "changed") return [...items].sort((a, b) => time(b) - time(a));
   return items;
 }
 
