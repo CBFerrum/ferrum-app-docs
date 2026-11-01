@@ -121,7 +121,7 @@ function styleNames(xml: string | null): Map<string, string> {
   for (const [id, name] of names) {
     let current = name;
     let at = id;
-    for (let hops = 0; hops < 6 && !/^(heading \d|title|quote|list |code|source code|html preformatted|preformatted)/.test(current) && based.has(at); hops++) {
+    for (let hops = 0; hops < 6 && !/^(heading \d|title|quote|block quotation|list |code|source code|html preformatted|preformatted)/.test(current) && based.has(at); hops++) {
       at = based.get(at)!;
       current = names.get(at) ?? current;
     }
@@ -251,7 +251,7 @@ class Reader {
       const level = Math.max(0, (Number(/(\d)$/.exec(style)?.[1]) || 1) - 1);
       if (!style.startsWith("list continue")) return void this.blocks.push({ t: "item", kind: style.startsWith("list number") ? "ordered" : "bullet", level, text });
     }
-    if (/^(quote|intense quote|block text)/.test(style)) return void this.blocks.push({ t: "quote", text });
+    if (/^(quote|quotations?|intense quote|block text|block quotation)/.test(style)) return void this.blocks.push({ t: "quote", text });
     this.blocks.push({ t: "para", text });
   }
 

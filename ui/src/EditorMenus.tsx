@@ -329,6 +329,8 @@ const WAIT = 8000;
  *  comment to the document; `url` is where it goes, for the last moments of a page that is closing. */
 export function useMentionNotices(editor: Editor | null, file: string, myEmail: string | undefined, post: Post | null, url: string | null) {
   const pending = useRef(new Map<string, Pending>());
+  // Told already on this visit: naming someone again in the same sitting does not tell them again.
+  const told = useRef(new Set<string>());
   // The words around each pick when it was made, for a page that closes before the editor is read.
   const contexts = useRef(new Map<string, string>());
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -343,7 +345,7 @@ export function useMentionNotices(editor: Editor | null, file: string, myEmail: 
     const notices = ed && !ed.isDestroyed ? planNotices(ed.state.doc, pending.current) : [...pending.current.values()].map((person) => ({ person, context: contexts.current.get(person.id) ?? "" }));
     pending.current = new Map();
     contexts.current = new Map();
-    const told: string[] = [];
+    const sent: string[] = [];
     const missed: string[] = [];
     await Promise.all(
       notices.map(async ({ person, context }) => {
@@ -351,17 +353,20 @@ export function useMentionNotices(editor: Editor | null, file: string, myEmail: 
         try {
           if (closing) {
             await fetch(to, { method: "POST", keepalive: true, credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+            told.current.add(person.id);
             return;
           }
           const res = await send("add_comment", body);
-          if ((res.mentioned ?? []).includes(person.email.toLowerCase())) told.push(person.name);
-          else missed.push(person.name);
+          if ((res.mentioned ?? []).includes(person.email.toLowerCase())) {
+            sent.push(person.name);
+            told.current.add(person.id);
+          } else missed.push(person.name);
         } catch (e) {
           toast(`${person.name} could not be told: ${errorMessage(e)}`, "error");
         }
       }),
     );
-    if (told.length) toast(`Told ${told.join(", ")}`);
+    if (sent.length) toast(`Told ${sent.join(", ")}`);
     if (missed.length) toast(`${missed.join(", ")} cannot open this document yet, so they were not told. Share it with them first.`, "info");
   }, []);
 
@@ -380,7 +385,7 @@ export function useMentionNotices(editor: Editor | null, file: string, myEmail: 
 
   return useCallback(
     (p: Pending) => {
-      if (p.email.toLowerCase() === myEmail?.toLowerCase()) return;
+      if (p.email.toLowerCase() === myEmail?.toLowerCase() || told.current.has(p.id)) return;
       pending.current.set(p.id, p);
       const ed = live.current.editor;
       const at = ed && !ed.isDestroyed ? mentionsIn(ed.state.doc).find((m) => m.attrs.id === p.id) : undefined;

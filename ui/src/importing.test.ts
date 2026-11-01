@@ -78,6 +78,7 @@ const STYLES = `<?xml version="1.0"?><w:styles ${W}>
   <w:style w:styleId="Heading2"><w:name w:val="heading 2"/></w:style>
   <w:style w:styleId="MyHeading"><w:name w:val="My Heading"/><w:basedOn w:val="Heading2"/></w:style>
   <w:style w:styleId="Quote"><w:name w:val="Quote"/></w:style>
+  <w:style w:styleId="BlockQuotation"><w:name w:val="Block Quotation"/></w:style>
   <w:style w:styleId="SourceCode"><w:name w:val="Source Code"/></w:style>
 </w:styles>`;
 const NUMBERING = `<?xml version="1.0"?><w:numbering ${W}>
@@ -103,6 +104,7 @@ const BODY = [
   para(run("Step one"), listed(2, 0)),
   para(run("Step two"), listed(2, 0)),
   para(run("Said by someone"), styled("Quote")),
+  para(run("And by another"), styled("BlockQuotation")),
   para(run("fn main() {}", '<w:rFonts w:ascii="Consolas"/>'), styled("SourceCode")),
   para(run("let x = 1;", '<w:rFonts w:ascii="Consolas"/>'), styled("SourceCode")),
   `<w:tbl><w:tr>${cell("Owner")}${cell("Due | when")}</w:tr><w:tr>${cell("Ana")}${cell("Friday")}</w:tr><w:tr>${cell("All day", '<w:gridSpan w:val="2"/>')}</w:tr></w:tbl>`,
@@ -158,7 +160,7 @@ describe("a Word document as Markdown", () => {
         "\\# not a heading",
         "- First\n  - Nested\n- Second",
         "1. Step one\n1. Step two",
-        "> Said by someone",
+        "> Said by someone\n>\n> And by another",
         "```\nfn main() {}\nlet x = 1;\n```",
         "| Owner | Due \\| when |\n|---|---|\n| Ana | Friday |\n| All day |  |",
         "Kept added",
