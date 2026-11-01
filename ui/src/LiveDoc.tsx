@@ -26,11 +26,12 @@ import {
   Minus,
   Quote,
   Redo2,
+  Search,
   SquareCode,
   Strikethrough,
+  TableOfContents,
   Underline,
   Undo2,
-  type LucideIcon,
 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
@@ -41,6 +42,9 @@ import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
 import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
 import { DocComments, anchorOf, textThreads } from "./comments";
+import { Contents } from "./Contents";
+import { Find } from "./find";
+import { FindBar } from "./FindBar";
 import { IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { openMention } from "./mention";
@@ -48,6 +52,7 @@ import { Menus } from "./menus";
 import { EditorMenus, type MenuApi, NO_MENU, useMentionNotices } from "./EditorMenus";
 import { usePresence } from "./presence";
 import { documentExtensions } from "./schema";
+import { Sep, Tool } from "./Tool";
 import { Suggestions, setSuggesting, suggestionsIn } from "./suggest";
 import "./livedoc.css";
 
@@ -69,6 +74,30 @@ async function addImages(editor: Editor, file: string, files: File[]) {
       toast(errorMessage(e), "error");
     }
   }
+}
+
+/** A small choice the browser remembers for this person (nothing where it refuses). */
+function remembered(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function remember(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // The choice just lasts until the page closes.
+  }
+}
+
+/** Whether a key was pressed in a field of the page other than the text and the find bar. */
+function inOtherField(target: EventTarget | null): boolean {
+  const el = target instanceof HTMLElement ? target : null;
+  if (!el || el.closest(".doc-body, .doc-find")) return false;
+  return el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName);
 }
 
 /** What the bar says about the document's connection and saving; `keeps`: the browser keeps
@@ -143,6 +172,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   // Pictures are chosen from one hidden field, by the toolbar and by the `/` menu.
   const picker = useRef<HTMLInputElement>(null);
   const [adding, setAdding] = useState(false);
+  // The contents beside the page (a choice the browser remembers), and find and replace above it.
+  const [contents, setContents] = useState(() => remembered("docs.contents") === "1");
+  const [finding, setFinding] = useState(false);
+  const [replacing, setReplacing] = useState(false);
+  const [findFocus, setFindFocus] = useState(0);
 
   const editor = useEditor(
     {
@@ -152,6 +186,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         Placeholder.configure({ placeholder: "Type / for blocks and @ to mention someone, or just start writing" }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
         Suggestions.configure({ onRefused: () => toast("While suggesting, only words change: switch to Editing to change formatting or structure") }),
+        Find,
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
         Collaboration.configure({ document: session.doc, field: "default" }),
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
@@ -230,6 +265,17 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         startRef.current();
         return;
       }
+      // Ctrl+F finds, and Ctrl+H (⌘⇧H on a Mac, where ⌘H hides the app) replaces, unless the person is
+      // typing in some other field of the page: then the browser's own find stays theirs.
+      const key = e.key.toLowerCase();
+      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      const wantsFind = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && key === "f";
+      const wantsReplace = mac ? e.metaKey && e.shiftKey && !e.altKey && key === "h" : e.ctrlKey && !e.altKey && !e.shiftKey && key === "h";
+      if ((wantsFind || wantsReplace) && !inOtherField(e.target)) {
+        e.preventDefault();
+        findRef.current(wantsReplace);
+        return;
+      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         toast(state.unsaved ? "Saving: changes are saved as you type" : "Saved: changes are saved as you type");
@@ -284,6 +330,18 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   const startRef = useRef(startComment);
   startRef.current = startComment;
+  /** Opens find (and, when asked and allowed, replace), and puts the caret in its field. */
+  const openFind = (withReplace: boolean) => {
+    setFinding(true);
+    setReplacing(withReplace && editable);
+    setFindFocus((n) => n + 1);
+  };
+  const findRef = useRef(openFind);
+  findRef.current = openFind;
+  const showContents = (on: boolean) => {
+    setContents(on);
+    remember("docs.contents", on ? "1" : "0");
+  };
   // Back where the person came from: Docs, or the document's folder in Drive (another app's page).
   const fromDocs = (location.state as { from?: string } | null)?.from === "docs";
   const toDrive = info.parent ? `/drive/${encodeURIComponent(info.parent)}?item=${encodeURIComponent(file)}` : "/drive/";
@@ -328,6 +386,12 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         {state.loaded && state.access === "read" && <Badge>View only</Badge>}
         <People people={here} />
         <div className="doc-bar-end">
+          <Button size="sm" aria-pressed={contents} onClick={() => showContents(!contents)} title="Contents: the headings, to jump to">
+            <TableOfContents size={16} aria-hidden /> Contents
+          </Button>
+          <Button size="sm" onClick={() => openFind(false)} title="Find in the document (Ctrl+F)">
+            <Search size={16} aria-hidden /> Find
+          </Button>
           {allows(info.permission, "Manage") && canShare && (
             <Button size="sm" onClick={share}>
               Share
@@ -363,8 +427,12 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </div>
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{state.error}</Alert>}
-      {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
-      <div className={`doc-main${railShown ? " doc-main-rail" : ""}`}>
+      <div className="doc-tools">
+        {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
+        {editor && finding && state.loaded && <FindBar editor={editor} canReplace={editable} replacing={replacing} setReplacing={setReplacing} focus={findFocus} onClose={() => setFinding(false)} />}
+      </div>
+      <div className={`doc-main${contents ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
+        {editor && contents && state.loaded && <Contents editor={editor} onHide={() => showContents(false)} />}
         <div className="doc-paper">
           {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
           <EditorContent editor={editor} hidden={!state.loaded} />
@@ -467,18 +535,6 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
       }}
     />
   );
-}
-
-function Tool({ label, icon: I, active, onClick, disabled }: { label: string; icon: LucideIcon; active?: boolean; onClick: () => void; disabled?: boolean }) {
-  return (
-    <button type="button" className="doc-tool" aria-label={label} title={label} aria-pressed={active} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={onClick}>
-      <I size={16} aria-hidden />
-    </button>
-  );
-}
-
-function Sep() {
-  return <span className="doc-sep" aria-hidden />;
 }
 
 const STYLES = [

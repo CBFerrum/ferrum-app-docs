@@ -622,3 +622,136 @@ input.doc-title:focus {
 .doc-pop-note:only-child {
   border-top: 0;
 }
+
+/* The toolbar and the find bar stay together at the top while the page scrolls. */
+.doc-tools {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.doc-tools:empty {
+  display: none;
+}
+
+/* Find and replace: the bar, and the matches marked in the text. */
+.doc-find {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.doc-find-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+.doc-find-input {
+  flex: 1 1 200px;
+  min-width: 0;
+  max-width: 360px;
+  height: 32px;
+}
+.doc-find-count {
+  min-width: 6ch;
+  padding: 0 6px;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.doc-body .doc-found {
+  background: var(--warning-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--warning) 40%, transparent);
+  border-radius: 2px;
+}
+.doc-body .doc-found-current {
+  background: color-mix(in srgb, var(--warning) 35%, var(--warning-soft));
+  box-shadow: 0 0 0 2px var(--warning);
+  /* Room for the bar when it is scrolled to. */
+  scroll-margin: 160px 0 80px;
+}
+.doc-body :is(h1, h2, h3, h4, h5, h6) {
+  scroll-margin-top: 150px;
+}
+
+/* The contents beside the page. */
+.doc-main-toc {
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+.doc-main-toc.doc-main-rail {
+  grid-template-columns: 220px minmax(0, 1fr) 320px;
+}
+@media (max-width: 1000px) {
+  .doc-main-toc,
+  .doc-main-toc.doc-main-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.doc-toc {
+  position: sticky;
+  top: 112px;
+  max-height: calc(100dvh - 140px);
+  overflow: auto;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+@media (max-width: 1000px) {
+  .doc-toc {
+    position: static;
+    max-height: 40dvh;
+  }
+}
+.doc-toc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 6px 8px;
+}
+.doc-toc-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.doc-toc-item {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.doc-toc-item:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.doc-toc-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.doc-toc-item[aria-current="location"] {
+  color: var(--primary);
+  font-weight: 600;
+  background: var(--primary-soft);
+}
+.doc-toc-empty {
+  margin: 4px 8px;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
