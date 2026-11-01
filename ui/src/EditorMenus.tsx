@@ -131,7 +131,7 @@ function Popup({ editor, at, children }: { editor: Editor; at: number; children:
   );
 }
 
-interface Choice {
+export interface Choice {
   key: string;
   icon: ReactNode;
   title: string;
@@ -140,8 +140,9 @@ interface Choice {
   run: () => void;
 }
 
-/** The list of a menu: groups of choices, one in view, and a line for screen readers. */
-function Choices({ choices, index, listId, label, query, status }: { choices: Choice[]; index: number; listId: string; label: string; query: string; status?: ReactNode }) {
+/** The list of a menu: groups of choices, one in view, and a line for screen readers. The editor names
+ *  the one in view by its id (`${listId}-${index}`, menus.ts), so the ids count across the groups. */
+export function Choices({ choices, index, listId, label, query, status }: { choices: Choice[]; index: number; listId: string; label: string; query: string; status?: ReactNode }) {
   useEffect(() => {
     document.getElementById(`${listId}-${index}`)?.scrollIntoView({ block: "nearest" });
   }, [listId, index, choices]);
