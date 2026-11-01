@@ -5,9 +5,9 @@
 
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, errorMessage } from "@ferrum/client";
-import { Button, confirmDialog, toast } from "@ferrum/kit";
+import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
 import { type Suggestion, settle, suggestionsIn } from "./suggest";
@@ -74,6 +74,9 @@ export function CommentRail({
   });
   const ordered = [...open].sort((a, b) => (places.get(a.root.id)?.from ?? Infinity) - (places.get(b.root.id)?.from ?? Infinity));
   const refresh = () => qc.invalidateQueries({ queryKey: ["drive", "comments", file] });
+  // Comments made meanwhile (also the ones that tell people they are mentioned) show at once; the
+  // timer in `commentsQuery` stays for where live updates do not reach.
+  useLiveEntity("DriveComment", useCallback(() => void qc.invalidateQueries({ queryKey: ["drive", "comments", file] }), [qc, file]));
   const mentions = (ids: string[]) => people.filter((p) => ids.includes(p.id)).map((p) => p.email);
   const name = (email: string | null) => people.find((p) => p.email === email)?.full_name || email || "Someone";
 

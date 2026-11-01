@@ -1,9 +1,10 @@
 import { getSchema } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
+import { EditorState, TextSelection } from "@tiptap/pm/state";
 import { prosemirrorToYDoc, yDocToProsemirrorJSON } from "@tiptap/y-tiptap";
 import { describe, expect, it } from "vitest";
 import { calloutKind } from "./callout";
-import { type Pending, contextOf, findPeople, mentionTarget, mentionsIn, noticeBody, planNotices } from "./mention";
+import { type Pending, contextOf, findPeople, mentionBeside, mentionTarget, mentionsIn, noticeBody, planNotices } from "./mention";
 import { documentExtensions } from "./schema";
 
 const schema = getSchema(documentExtensions("file"));
@@ -32,6 +33,24 @@ describe("mentions", () => {
     expect(mentionTarget({ kind: "record", id: "x", entity: "../admin" })).toBeNull();
     expect(mentionTarget({ kind: "record", id: "a/b", entity: "Customer" })).toBeNull();
     expect(mentionTarget({ kind: "record", id: null, entity: "Customer" })).toBeNull();
+  });
+
+  it("are taken whole by Backspace and Delete beside them, and by nothing in the middle of words", () => {
+    // "Ask " (4) + the mention (@Ben = 4 characters + 2 for the node = 6) + " now"
+    const d = doc(para(text("Ask "), person("u1", "@Ben"), text(" now")));
+    const at = (pos: number) => EditorState.create({ schema, doc: d, selection: TextSelection.create(d, pos) });
+    const start = 1 + 4;
+    const end = start + 6;
+    expect(mentionBeside(at(end), -1)).toEqual({ from: start, to: end });
+    expect(mentionBeside(at(start), 1)).toEqual({ from: start, to: end });
+    expect(mentionBeside(at(end), 1)).toBeNull();
+    expect(mentionBeside(at(start), -1)).toBeNull();
+    expect(mentionBeside(at(3), -1)).toBeNull();
+    const range = EditorState.create({ schema, doc: d, selection: TextSelection.create(d, 2, 4) });
+    expect(mentionBeside(range, -1)).toBeNull();
+    const state = at(end);
+    const after = state.apply(state.tr.delete(start, end));
+    expect(after.doc.textContent).toBe("Ask  now");
   });
 
   it("are found in the text, in order", () => {

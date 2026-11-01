@@ -5,7 +5,7 @@
   <img alt="Ferrum Docs" src="docs/assets/banner-light.svg" width="100%">
 </picture>
 
-[![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.5.2-2f5bea?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
+[![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml) ![Version](https://img.shields.io/badge/version-0.6.0-2f5bea?style=flat-square) ![Ferrum](https://img.shields.io/badge/Ferrum-%3E%3D0.3.2%2C%20%3C0.4-2f5bea?style=flat-square) ![License](https://img.shields.io/badge/license-AGPL--3.0-3b82f6?style=flat-square) ![Rust](https://img.shields.io/badge/Rust-native%20app-b7410e?style=flat-square&logo=rust&logoColor=white) ![Interface](https://img.shields.io/badge/interface-React%20%2B%20Vite-0ea5e9?style=flat-square&logo=react&logoColor=white) ![MCP](https://img.shields.io/badge/AI%20agents-MCP-8b5cf6?style=flat-square)
 
 **A native app for [Ferrum](https://github.com/CBFerrum/Ferrum), the open-source, AI-first business platform.**
 
@@ -17,22 +17,24 @@
 
 ## Overview
 
-Ferrum Docs is the home for documents written together: recent, shared and starred documents,
-each showing who is in it now; templates to start from; search by what documents say; and
-comments and suggestions on the text. Documents are Drive's live documents, so sharing, versions,
-trash and guest links are Drive's, and AI agents draft and add to them over Ferrum's MCP server.
+Ferrum Docs is the home for documents written together: recent, shared and starred documents and
+folders, each showing who is in it now; templates to start from, or a Word or Markdown file to
+import; search by what documents say; and, in the editor, a `/` menu for blocks, `@` mentions of
+people and records, contents, find and replace, comments and suggestions on the text, and a version
+history you can read. Documents are Drive's live documents, so sharing, versions, trash and guest
+links are Drive's, and AI agents draft and add to them over Ferrum's MCP server.
 
 
 | At a glance | |
 |---|---|
-| 📦 Version | `0.5.2` |
+| 📦 Version | `0.6.0` |
 | 🧱 Platform | Ferrum `>=0.3.2, <0.4` |
 | 🔗 Requires | drive `>=0.7` |
 | 🖥️ Interface | its own, at `/docs/` |
 | 🗃️ Records | 1 entities in 1 package |
 | 👥 Roles | 2: Docs User, Docs Manager |
 | 📊 Reports | 0 |
-| 🧪 Tests | 3 Rust tests, 3 interface test files |
+| 🧪 Tests | 3 Rust tests, 12 interface test files |
 
 
 ## Highlights
@@ -63,6 +65,34 @@ Find documents by what they say, with the words shown in context.
 
 ### 💬 Comments and suggestions
 Discuss and propose changes on the text itself.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### ⌨️ Slash menu and mentions
+`/` puts a heading, list, table, callout or picture in the text; `@` names a person (who is told) or a record.
+
+</td>
+<td width="50%" valign="top">
+
+### 🕘 Version history
+Read any version, see the words that changed, and restore one as a copy.
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 📥 Import and export
+Make a document from a Word or Markdown file; download it as Word, PDF, Markdown, text or a web page.
+
+</td>
+<td width="50%" valign="top">
+
+### 🗂️ Folders and filters
+Browse your folders and your teams', and narrow the list by owner and when it changed.
 
 </td>
 </tr>
@@ -242,6 +272,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.6.0** | A `/` menu for blocks and `@` mentions of people and records in the editor; contents from the headings; find and replace; a version history you can read, with the changed words marked; import of Word and Markdown files; and a home with folders, filters and stars. |
 | **0.5.2** | Keeping unsaved changes fails safely: a browser that refuses the write at once (as some do when storage is full) no longer counts as having kept … |
 | **0.5.1** | When the browser cannot keep unsaved changes (its storage is full, or it refuses IndexedDB), the page says they are kept in this tab only and … |
 | **0.5.0** | Suggestions: a mode for editors, Editing or Suggesting. While suggesting, typing proposes: `insertion` and `deletion` marks carry who, when and an … |

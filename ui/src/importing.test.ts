@@ -172,6 +172,11 @@ describe("a Word document as Markdown", () => {
     expect((await docxToMarkdown(await docx(doc))).markdown).toBe("Keep this");
   });
 
+  it("leaves out paragraphs that are only breaks, and keeps a quote's lines from becoming blocks", async () => {
+    const doc = `<w:document ${W}><w:body>${para("<w:r><w:br/></w:r>")}${para(run("# not a heading"), styled("Quote"))}${para(run("kept"))}</w:body></w:document>`;
+    expect((await docxToMarkdown(await docx(doc))).markdown).toBe("> \\# not a heading\n\nkept");
+  });
+
   it("says why a file cannot be imported", async () => {
     await expect(docxToMarkdown(bytesOf("not a zip"))).rejects.toThrow(/not a Word document/);
     await expect(docxToMarkdown(await zip({ "other.xml": "<a/>" }))).rejects.toThrow(/no text part/);
