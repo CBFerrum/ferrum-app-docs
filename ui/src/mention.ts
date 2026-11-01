@@ -9,7 +9,7 @@
 
 import { mergeAttributes, Node } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import { NodeSelection } from "@tiptap/pm/state";
+import { type EditorState, NodeSelection } from "@tiptap/pm/state";
 import { shell } from "@ferrum/client";
 
 export type MentionKind = "person" | "record";
@@ -34,6 +34,18 @@ export function mentionTarget(a: Pick<MentionAttrs, "kind" | "id" | "entity">): 
 export function openMention(a: MentionAttrs): boolean {
   const to = mentionTarget(a);
   return !!to && shell().navigate(to);
+}
+
+/** The mention right beside the caret, on the side `dir` (-1 before it, 1 after), as the range to take
+ *  away: Backspace and Delete take a mention whole, whatever the browser would do with a unit it
+ *  cannot edit. */
+export function mentionBeside(state: EditorState, dir: -1 | 1): { from: number; to: number } | null {
+  if (!state.selection.empty) return null;
+  const $pos = state.selection.$from;
+  const node = dir < 0 ? $pos.nodeBefore : $pos.nodeAfter;
+  if (node?.type.name !== "mention") return null;
+  const from = dir < 0 ? $pos.pos - node.nodeSize : $pos.pos;
+  return { from, to: from + node.nodeSize };
 }
 
 export const Mention = Node.create({
@@ -93,7 +105,13 @@ export const Mention = Node.create({
   renderText: ({ node }) => node.textContent,
 
   addKeyboardShortcuts() {
+    const take = (dir: -1 | 1) => () => {
+      const range = mentionBeside(this.editor.state, dir);
+      return !!range && this.editor.commands.deleteRange(range);
+    };
     return {
+      Backspace: take(-1),
+      Delete: take(1),
       // A selected record opens with Enter, as a link does with a click.
       Enter: ({ editor }) => {
         const sel = editor.state.selection;

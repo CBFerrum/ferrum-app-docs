@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.6.0
+
+- A `/` menu in the editor (Ferrum apps-ui.md, the document editor): type `/` at the start of a word
+  to put a heading, list, checklist, table, callout, quote, code block, divider, picture or today's
+  date in the text. It narrows as you type and works from the keyboard (arrows, Enter or Tab,
+  Escape). Callouts (note, tip, warning, alert) are the editor's quote with a kind, so Word and
+  other exports show them as quotes. The menu stays out of the way while suggesting.
+- Mentions: type `@` to name a person or a record (or a document) of the workspace, as the bar's
+  search finds them. A person mentioned is told, by a short comment on the document a few seconds
+  after the mention is made and only if it is still there; the page says if they cannot open the
+  document yet. A record opens with Ctrl or ⌘ held (or Enter when selected, or a plain click where
+  the text cannot be changed). Exports and search read a mention as its name.
+- Contents: a button in the bar shows the headings beside the page, marks the one in view and jumps
+  to one. The choice is remembered.
+- Find and replace: the bar's Find (Ctrl+F; Ctrl+H, or ⌘⇧H on a Mac, with replace) marks every
+  match and counts them. Replace one or all, as one change; while suggesting, replacements are
+  suggestions.
+- Version history, at File, Version history (or a document's menu on the home page): the versions
+  with who and when, the one chosen beside the one before it, the text now or any other version,
+  with added words underlined and removed words struck through, a count, and arrows between the
+  changes. Download a version as Word, PDF, a web page or text, or restore it as a copy beside the
+  document (a live document is never overwritten by an old version).
+- Import a Word document (.docx), Markdown or a text file as a new document, from "Import a file" or
+  by dropping it on the home page. Headings, bold, italic, strikethrough, links, nested lists, quotes,
+  code and tables come across; pictures and page layout do not, and the page says how many pictures
+  were left out. File also has Download as Markdown.
+- The home gains folders (My documents and team folders, with a path), choices for owner, time
+  changed and order that live in the address with the search, search that follows your typing, a
+  star and a menu on each document (open, version history, share, move to the trash), people's names
+  for owners, and it refreshes when files change. Starting a document or importing in a folder puts
+  it there.
+- Suggesting refuses to add or take away a mention (it is a unit, not words). The editor's colours
+  come from the theme, so dark mode follows.
+- No server change: it needs the same Drive (0.7 or later). Records in the `@` menu come from the
+  platform's search; where that is missing, people are still offered.
+
 ## 0.5.2
 
 - Keeping unsaved changes fails safely: a browser that refuses the write at once (as some do when

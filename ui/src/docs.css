@@ -376,3 +376,9 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-row {
+    transition: none;
+  }
+}

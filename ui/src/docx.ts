@@ -230,9 +230,10 @@ class Reader {
     const segs: Seg[] = [];
     this.runs(p, undefined, segs);
     const text = renderSegs(segs);
-    if (!text.trim()) return;
-    const style = this.style(p);
     const plain = text.replace(/\\\n/g, " ");
+    // A paragraph of spaces and breaks only is a gap in the layout, not text.
+    if (!plain.trim()) return;
+    const style = this.style(p);
     const heading = /^heading (\d)/.exec(style);
     if (heading) return void this.blocks.push({ t: "heading", level: Math.min(6, Number(heading[1])), text: plain });
     if (style === "title") return void this.blocks.push({ t: "heading", level: 1, text: plain });
@@ -341,7 +342,7 @@ export function renderBlocks(blocks: Block[]): string {
         out.push(b.text.split("\n").map(guardLine).join("\n"));
         break;
       case "quote":
-        quote.push(b.text.split("\n").map((l) => `> ${l}`).join("\n"));
+        quote.push(b.text.split("\n").map((l) => `> ${guardLine(l)}`).join("\n"));
         break;
       case "code":
         code.push(b.text);
