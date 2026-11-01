@@ -335,6 +335,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   }, [editor, suggesting, editable, state.me]);
   const pending = useEditorState({ editor, selector: ({ editor: e }) => (e ? suggestionsIn(e.state.doc).length : 0) }) ?? 0;
   const railShown = !!draft || pending > 0 || textThreads(threads.data ?? []).length > 0;
+  // The contents are drawn once the text is (the column is not made before).
+  const tocShown = contents && !!editor && state.loaded;
   /** A comment on the selected words (Ctrl+Alt+M). */
   const startComment = () => {
     const a = editor ? anchorOf(editor.state) : null;
@@ -447,8 +449,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
         {editor && finding && state.loaded && <FindBar editor={editor} canReplace={editable} replacing={replacing} setReplacing={setReplacing} focus={findFocus} onClose={() => setFinding(false)} />}
       </div>
-      <div className={`doc-main${contents ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
-        {editor && contents && state.loaded && <Contents editor={editor} onHide={() => showContents(false)} />}
+      <div className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
+        {editor && tocShown && <Contents editor={editor} onHide={() => showContents(false)} />}
         <div className="doc-paper">
           {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
           <EditorContent editor={editor} hidden={!state.loaded} />
