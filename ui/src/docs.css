@@ -105,11 +105,20 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+}
+/* The rows' menus open over the list's edge, so the list does not clip: its corners are the rows'. */
+.docs-row:first-child {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.docs-row:last-child {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.docs-row:only-child {
+  border-radius: var(--radius);
 }
 .docs-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   column-gap: 14px;
   row-gap: 4px;
   padding: 12px 16px;
@@ -118,7 +127,7 @@
 .docs-row:hover {
   background: var(--surface-2);
 }
-.docs-row > :not(.docs-row-icon) {
+.docs-row > :not(.docs-row-icon):not(.docs-row-actions) {
   grid-column: 2;
 }
 .docs-row-icon {
@@ -156,4 +165,214 @@
 }
 .docs-meta {
   font-size: 0.8rem;
+}
+
+/* A row's star and menu. */
+.docs-row-actions {
+  grid-column: 3;
+  grid-row: 1 / span 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.docs-icon-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 6px;
+  color: var(--muted-foreground);
+  font: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.docs-icon-btn:hover {
+  color: var(--text);
+  background: var(--surface-3);
+}
+.docs-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.docs-icon-btn[aria-pressed="true"] {
+  color: var(--warning);
+}
+@media (pointer: coarse) {
+  .docs-icon-btn {
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+/* Where the documents are: the lists, then the folders; a row of chips on a phone. */
+.docs-browse {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.docs-rail {
+  position: sticky;
+  top: 8px;
+}
+.docs-rail ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.docs-rail-title {
+  margin: 14px 8px 4px;
+  color: var(--faint);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.docs-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 0.9rem;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+.docs-rail-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.docs-rail-item:hover {
+  background: var(--surface-2);
+}
+.docs-rail-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.docs-rail-item[aria-current="page"] {
+  color: var(--primary);
+  font-weight: 600;
+  background: var(--primary-soft);
+}
+@media (max-width: 900px) {
+  .docs-browse {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .docs-rail {
+    position: static;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+  }
+  .docs-rail ul {
+    flex-direction: row;
+    gap: 6px;
+  }
+  .docs-rail-title {
+    margin: 0 2px 0 8px;
+    white-space: nowrap;
+  }
+  .docs-rail-item {
+    flex: none;
+    padding: 6px 12px;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+  }
+}
+
+/* A folder's path, and what narrows the list. */
+.docs-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  color: var(--muted-foreground);
+  font-size: 0.9rem;
+  list-style: none;
+}
+.docs-crumbs li + li::before {
+  margin-right: 4px;
+  color: var(--faint);
+  content: "/";
+}
+.docs-crumb {
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+.docs-crumb:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+.docs-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.docs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 4px 0 12px;
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+.docs-chip:focus-within {
+  box-shadow: var(--focus-ring);
+}
+.docs-chip select {
+  height: 28px;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.docs-chip select:focus-visible {
+  outline: none;
+}
+.docs-more {
+  margin: 8px 0 0;
+}
+
+/* Files held over the page: drop them to make documents. */
+.docs-drop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  pointer-events: none;
+}
+.docs-drop-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 28rem;
+  padding: 32px;
+  color: var(--primary);
+  text-align: center;
+  background: var(--surface);
+  border: 2px dashed var(--primary);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
 }
