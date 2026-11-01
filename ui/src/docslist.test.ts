@@ -33,6 +33,13 @@ describe("Docs' lists", () => {
     expect(ids("any")).toHaveLength(4);
   });
 
+  it("keep folders however the list is narrowed, and order one without a time last", () => {
+    const folder = item("f", { kind: "folder", content_type: null, owner: "ben@acme.test", modified_at: null as unknown as string });
+    const list = [folder, item("old", { owner: "ben@acme.test", modified_at: at(5) })];
+    expect(narrow(list, { owner: "me", changed: "7", me: "ana@acme.test", now }).map((i) => i.id)).toEqual(["f"]);
+    expect(ordered([folder, item("new", { modified_at: at(20) }), list[1]!], "changed").map((i) => i.id)).toEqual(["new", "old", "f"]);
+  });
+
   it("say the first day a choice covers, for Drive's search", () => {
     expect([changedFrom("any", now), changedFrom("today", now), changedFrom("7", now), changedFrom("30", now)]).toEqual([undefined, "2026-11-01", "2026-10-26", "2026-10-03"]);
   });
