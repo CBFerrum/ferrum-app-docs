@@ -272,6 +272,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.6.1** | Rebuilt with Ferrum-Frontend 80ff179: labels name their fields, and linked titles show their titles. |
 | **0.6.0** | A `/` menu for blocks and `@` mentions of people and records in the editor; contents from the headings; find and replace; a version history you can read, with the changed words marked; import of Word and Markdown files; and a home with folders, filters and stars. |
 | **0.5.2** | Keeping unsaved changes fails safely: a browser that refuses the write at once (as some do when storage is full) no longer counts as having kept … |
 | **0.5.1** | When the browser cannot keep unsaved changes (its storage is full, or it refuses IndexedDB), the page says they are kept in this tab only and … |
