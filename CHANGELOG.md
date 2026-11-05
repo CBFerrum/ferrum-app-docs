@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+Unsaved changes wait in the browser under the workspace's offline policy (Ferrum docs/offline.md): as work not sent yet, kept for their person until the server stores them, whatever the lease says. Changes kept before, in the browser's old place, are still found and sent.
+
 ## 0.6.3
 
 Rebuilt with Ferrum-Frontend 00dea07: in a workflow state that names what may change, the other fields show read-only, and the fields the state needs show required.
