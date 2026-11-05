@@ -13,6 +13,7 @@ import * as encoding from "lib0/encoding";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
+import { offlineEnv, pendingName } from "@ferrum/client";
 
 export type Access = "read" | "write";
 
@@ -80,14 +81,39 @@ function done(t: IDBTransaction): Promise<void> {
   });
 }
 
-/** The browser's IndexedDB as a [`Keeper`]; null where there is none. */
-export function browserKeeper(): Keeper | null {
-  if (typeof indexedDB === "undefined") return null;
+/** Where unsaved changes were kept before the platform's offline policy (Ferrum docs/offline.md):
+ *  read from still, until nobody comes back for them. */
+const LEGACY = "ferrum-docs";
+
+/** The browser's IndexedDB as a [`Keeper`]; null where there is none. Unsaved changes are work not
+ *  sent yet, so they are kept for their person (under the policy's pending name, the workspace's
+ *  and theirs), whatever the lease, until the server stores them. */
+export function browserKeeper(make: (database: string) => Keeper = indexedKeeper): Keeper | null {
+  if (make === indexedKeeper && typeof indexedDB === "undefined") return null;
+  const name = pendingName(offlineEnv(), "docs", "unsaved") ?? LEGACY;
+  const keepers = [make(name), ...(name === LEGACY ? [] : [make(LEGACY)])];
+  return {
+    async load(key) {
+      for (const k of keepers) {
+        const state = await k.load(key).catch(() => null);
+        if (state) return state;
+      }
+      return null;
+    },
+    save: (key, state) => keepers[0].save(key, state),
+    async drop(key) {
+      await Promise.all(keepers.map((k) => k.drop(key).catch(() => undefined)));
+    },
+  };
+}
+
+/** One IndexedDB database as a [`Keeper`]. */
+function indexedKeeper(database: string): Keeper {
   const STORE = "unsaved";
   let db: Promise<IDBDatabase> | null = null;
   const open = () =>
     (db ??= new Promise<IDBDatabase>((resolve, reject) => {
-      const req = indexedDB.open("ferrum-docs", 1);
+      const req = indexedDB.open(database, 1);
       req.onupgradeneeded = () => req.result.createObjectStore(STORE);
       req.onerror = () => reject(req.error);
       req.onsuccess = () => {
