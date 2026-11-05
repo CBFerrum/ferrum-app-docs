@@ -4,7 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
-import { CoeditSession, type Keeper, type SocketLike, backoff, othersIn, socketUrl } from "./coedit";
+import { resetBootstrap } from "@ferrum/client";
+import { fakeBootstrap } from "@ferrum/testing";
+import { CoeditSession, type Keeper, type SocketLike, backoff, browserKeeper, othersIn, socketUrl } from "./coedit";
 import { statusText } from "./LiveDoc";
 
 /** A socket the test drives: what the page sent, and the server's side of the conversation. */
@@ -316,5 +318,31 @@ describe("documents edited together", () => {
   it("waits longer after each failure, up to 30 seconds", () => {
     expect([0, 1, 2, 10].map((a) => backoff(a, () => 1))).toEqual([1000, 2000, 4000, 30_000]);
     expect(backoff(3, () => 0)).toBe(4000);
+  });
+});
+
+describe("where unsaved changes wait", () => {
+  it("under the person's pending name, still reading what was kept before the policy", async () => {
+    const stores = new Map<string, Map<string, Uint8Array>>();
+    const make = (database: string): Keeper => {
+      const m = stores.get(database) ?? new Map<string, Uint8Array>();
+      stores.set(database, m);
+      return { load: async (k) => m.get(k) ?? null, save: async (k, s) => void m.set(k, s), drop: async (k) => void m.delete(k) };
+    };
+    (globalThis as { __FERRUM_BOOTSTRAP__?: unknown }).__FERRUM_BOOTSTRAP__ = fakeBootstrap({
+      offline: { allowed: false, until: null, hours: 72, key: "k1", person: "p1" },
+    } as never);
+    resetBootstrap();
+    make("ferrum-docs");
+    stores.get("ferrum-docs")!.set("doc|p1", new Uint8Array([1]));
+    const keeper = browserKeeper(make)!;
+    expect(await keeper.load("doc|p1")).toEqual(new Uint8Array([1]));
+    await keeper.save("doc|p1", new Uint8Array([2]));
+    expect(stores.get("ferrum.offline.test.docs.person-p1.unsaved")!.get("doc|p1")).toEqual(new Uint8Array([2]));
+    expect(await keeper.load("doc|p1")).toEqual(new Uint8Array([2]));
+    await keeper.drop("doc|p1");
+    expect([...stores.values()].every((m) => !m.has("doc|p1"))).toBe(true);
+    delete (globalThis as { __FERRUM_BOOTSTRAP__?: unknown }).__FERRUM_BOOTSTRAP__;
+    resetBootstrap();
   });
 });
