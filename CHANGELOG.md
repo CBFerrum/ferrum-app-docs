@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+Rebuilt with Ferrum-Frontend bb60115: a record page reads an empty number or check as the server does, so an action whose condition needs one shows, and a workspace's settings open as their one record.
+
 ## 0.7.0
 
 Unsaved changes wait in the browser under the workspace's offline policy (Ferrum docs/offline.md): as work not sent yet, kept for their person until the server stores them, whatever the lease says. Changes kept before, in the browser's old place, are still found and sent.
