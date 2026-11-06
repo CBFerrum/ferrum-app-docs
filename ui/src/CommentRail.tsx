@@ -6,7 +6,7 @@
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, errorMessage } from "@ferrum/client";
+import { api, errorMessage, formatDateTime } from "@ferrum/client";
 import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
@@ -134,7 +134,7 @@ export function CommentRail({
       <div className="doc-thread-head">
         <strong>{name(c.author)}</strong>
         <time className="faint" dateTime={c.created_at}>
-          {new Date(c.created_at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+          {formatDateTime(c.created_at)}
         </time>
         {(c.mine || canManage) && (
           <button type="button" className="doc-thread-link" onClick={() => void remove(c, thread)} aria-label={thread ? "Delete the thread" : "Delete the reply"}>
@@ -198,7 +198,7 @@ export function CommentRail({
                   <strong>{s.name || "Someone"}</strong>
                   {s.at && (
                     <time className="faint" dateTime={s.at}>
-                      {new Date(s.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+                      {formatDateTime(s.at)}
                     </time>
                   )}
                 </div>
