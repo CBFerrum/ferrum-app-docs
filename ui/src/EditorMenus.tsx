@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { AtSign, Calendar, FileText, Heading1, Heading2, Heading3, Info, ImagePlus, Lightbulb, List, ListChecks, ListOrdered, Minus, OctagonAlert, Pilcrow, Quote, SquareCode, Table, TriangleAlert, type LucideIcon } from "lucide-react";
 import { type CSSProperties, type MutableRefObject, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { api, errorMessage, initials } from "@ferrum/client";
+import { api, errorMessage, formatMoment, initials } from "@ferrum/client";
 import { toast, useDebounced } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Block, type BlockId, findBlocks } from "./blocks";
@@ -80,7 +80,7 @@ export function runBlock(editor: Editor, id: BlockId, range: { from: number; to:
       chain().run();
       return pickImages();
     case "date":
-      return chain().insertContent(new Date().toLocaleDateString(undefined, { dateStyle: "long" })).run();
+      return chain().insertContent(formatMoment(new Date(), { dateStyle: "long" })).run();
     case "mention":
       // The @ it types opens the menu of people and records.
       return chain().insertContent("@").run();
