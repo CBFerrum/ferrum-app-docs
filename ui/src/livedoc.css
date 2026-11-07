@@ -315,17 +315,17 @@ input.doc-title:focus {
 /* Everyone else's cursor, in their colour, named. */
 .collaboration-carets__caret {
   position: relative;
-  margin-left: -1px;
-  margin-right: -1px;
-  border-left: 1px solid;
-  border-right: 1px solid;
+  margin-inline-start: -1px;
+  margin-inline-end: -1px;
+  border-inline-start: 1px solid;
+  border-inline-end: 1px solid;
   word-break: normal;
   pointer-events: none;
 }
 .collaboration-carets__label {
   position: absolute;
   top: -1.4em;
-  left: -1px;
+  inset-inline-start: -1px;
   padding: 0.1rem 0.3rem;
   border-radius: 3px 3px 3px 0;
   /* On a person's own colour, as the avatar. */
@@ -404,14 +404,15 @@ input.doc-title:focus {
 .doc-thread-quote {
   display: block;
   margin: 0;
-  padding: 0 0 0 8px;
+  padding-block: 0 0;
+  padding-inline: 8px 0;
   border: 0;
-  border-left: 3px solid var(--warning);
+  border-inline-start: 3px solid var(--warning);
   background: none;
   color: var(--muted-foreground);
   font: inherit;
   font-size: 0.85em;
-  text-align: left;
+  text-align: start;
   overflow-wrap: anywhere;
   cursor: pointer;
 }
@@ -428,7 +429,7 @@ input.doc-title:focus {
   overflow-wrap: anywhere;
 }
 .doc-thread-link {
-  margin-left: auto;
+  margin-inline-start: auto;
   padding: 0;
   border: 0;
   background: none;
@@ -481,7 +482,7 @@ input.doc-title:focus {
   border: 0;
   background: none;
   font: inherit;
-  text-align: left;
+  text-align: start;
   overflow-wrap: anywhere;
   cursor: pointer;
 }
