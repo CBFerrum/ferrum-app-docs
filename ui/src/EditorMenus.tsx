@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { AtSign, Calendar, FileText, Heading1, Heading2, Heading3, Info, ImagePlus, Lightbulb, List, ListChecks, ListOrdered, Minus, OctagonAlert, Pilcrow, Quote, SquareCode, Table, TriangleAlert, type LucideIcon } from "lucide-react";
 import { type CSSProperties, type MutableRefObject, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { api, errorMessage, formatMoment, initials, t } from "@ferrum/client";
+import { api, errorMessage, formatMoment, initials, t, isolate } from "@ferrum/client";
 import { toast, useDebounced } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Block, type BlockId, findBlocks } from "./blocks";
@@ -158,15 +158,15 @@ export function Choices({ choices, index, listId, label, query, status }: { choi
         {groups.map((g) => (
           <div key={g.name} role="group" aria-label={g.name}>
             {/* Groups are only named when nothing narrows the list. */}
-            {!query && <div className="doc-pop-group" aria-hidden>{g.name}</div>}
+            {!query && <div className="doc-pop-group" aria-hidden>{isolate(g.name)}</div>}
             {g.items.map(({ choice, at }) => (
               <div key={choice.key} id={`${listId}-${at}`} role="option" aria-selected={at === index} className="doc-pop-item" onClick={choice.run}>
                 <span className="doc-pop-icon" aria-hidden>
                   {choice.icon}
                 </span>
                 <span className="doc-pop-text">
-                  <span className="doc-pop-title">{choice.title}</span>
-                  {choice.hint && <span className="doc-pop-hint">{choice.hint}</span>}
+                  <span className="doc-pop-title">{isolate(choice.title)}</span>
+                  {choice.hint && <span className="doc-pop-hint">{isolate(choice.hint)}</span>}
                 </span>
               </div>
             ))}
@@ -175,7 +175,7 @@ export function Choices({ choices, index, listId, label, query, status }: { choi
       </div>
       {status}
       <div className="sr-only" role="status">
-        {choices.length === 1 ? "1 choice." : `${choices.length} choices.`} {t("Use the up and down arrow keys, then Enter.")}
+        {choices.length === 1 ? t("1 choice.") : t("{length} choices.", { length: choices.length })} {t("Use the up and down arrow keys, then Enter.")}
       </div>
     </>
   );
@@ -240,7 +240,7 @@ function MentionMenu({ editor, open, listId, menu, onMentioned }: { editor: Edit
       const name = p.full_name || p.email;
       return {
         key: `p-${p.id}`,
-        icon: <span className="doc-pop-avatar">{initials(name)}</span>,
+        icon: <span className="doc-pop-avatar">{isolate(initials(name))}</span>,
         title: name,
         hint: p.full_name ? p.email : undefined,
         group: "People",
@@ -362,12 +362,12 @@ export function useMentionNotices(editor: Editor | null, file: string, myEmail: 
             told.current.add(person.id);
           } else missed.push(person.name);
         } catch (e) {
-          toast(`${person.name} could not be told: ${errorMessage(e)}`, "error");
+          toast(t("{name} could not be told: {e}", { name: person.name, e: errorMessage(e) }), "error");
         }
       }),
     );
-    if (sent.length) toast(`Told ${sent.join(", ")}`);
-    if (missed.length) toast(`${missed.join(", ")} cannot open this document yet, so they were not told. Share it with them first.`, "info");
+    if (sent.length) toast(t("Told {sent}", { sent: sent.join(", ") }));
+    if (missed.length) toast(t("{missed} cannot open this document yet, so they were not told. Share it with them first.", { missed: missed.join(", ") }), "info");
   }, []);
 
   useEffect(() => {

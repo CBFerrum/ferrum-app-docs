@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { api, download, errorMessage, initials, openPrint, saveBlob, shell, t } from "@ferrum/client";
+import { api, download, errorMessage, initials, openPrint, saveBlob, shell, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
@@ -64,7 +64,7 @@ const DETAILS_PANEL = "drive.details";
 async function addImages(editor: Editor, file: string, files: File[]) {
   for (const f of files) {
     if (f.size > MAX_IMAGE) {
-      toast(`“${f.name}” is larger than 10 MB`, "error");
+      toast(t("“{name}” is larger than 10 MB", { name: f.name }), "error");
       continue;
     }
     try {
@@ -130,7 +130,7 @@ export function LiveDocPage() {
   if (info.error) {
     return (
       <EmptyState title={t("This document cannot be opened")} icon="file">
-        <p className="muted">{errorMessage(info.error)}</p>
+        <p className="muted">{isolate(errorMessage(info.error))}</p>
         <a href="/drive/">{t("Go to Drive")}</a>
       </EmptyState>
     );
@@ -246,9 +246,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   useEffect(() => {
     if (blocker.state !== "blocked") return;
     void confirmDialog({
-      title: "Leave before your changes are saved?",
-      message: state.online ? "Your latest changes are still being saved." : "You are offline: changes typed since the connection dropped are only in this tab.",
-      confirmLabel: "Leave",
+      title: t("Leave before your changes are saved?"),
+      message: state.online ? t("Your latest changes are still being saved.") : t("You are offline: changes typed since the connection dropped are only in this tab."),
+      confirmLabel: t("Leave"),
       danger: true,
     }).then((ok) => (ok ? blocker.proceed() : blocker.reset()));
   }, [blocker, state.online]);
@@ -278,7 +278,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        toast(state.unsaved ? "Saving: changes are saved as you type" : "Saved: changes are saved as you type");
+        toast(state.unsaved ? t("Saving: changes are saved as you type") : t("Saved: changes are saved as you type"));
       }
     };
     window.addEventListener("keydown", onKey);
@@ -297,7 +297,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   /** Text and Markdown carry the words only, so suggestions waiting show up as both the old and the new. */
   const suggestionsNote = () => {
-    if (pending > 0) toast(`${pending} ${pending === 1 ? "suggestion is" : "suggestions are"} still waiting: the file has the words as suggested and as they were`, "info");
+    if (pending > 0) toast(t("{pending} {value} still waiting: the file has the words as suggested and as they were", { pending, value: pending === 1 ? "suggestion is" : "suggestions are" }), "info");
   };
   const exportMarkdown = async () => {
     try {
@@ -397,7 +397,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         )}
         <Title name={info.name} canRename={canEdit && !!space.data} rename={(name) => act("rename", { item: file, name }).then(() => qc.invalidateQueries({ queryKey: ["drive"] }))} />
         <span className="doc-status" role="status" aria-live="polite">
-          {statusText(state, session.keeps)}
+          {isolate(statusText(state, session.keeps))}
         </span>
         {state.loaded && state.access === "read" && <Badge>{t("View only")}</Badge>}
         <People people={here} />
@@ -444,7 +444,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           </Menu>
         </div>
       </header>
-      {state.error && <Alert tone={state.closed ? "error" : "warning"}>{state.error}</Alert>}
+      {state.error && <Alert tone={state.closed ? "error" : "warning"}>{isolate(state.error)}</Alert>}
       <div className="doc-tools">
         {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
         {editor && finding && state.loaded && <FindBar editor={editor} canReplace={editable} replacing={replacing} setReplacing={setReplacing} focus={findFocus} onClose={() => setFinding(false)} />}
@@ -505,10 +505,10 @@ function People({ people }: { people: { client: number; name: string; color: str
   const shown = people.slice(0, 5);
   const names = people.map((p) => p.name).join(", ");
   return (
-    <div className="doc-people" role="group" aria-label={`Also here: ${names}`} title={`Also here: ${names}`}>
+    <div className="doc-people" role="group" aria-label={t("Also here: {names}", { names })} title={t("Also here: {names}", { names })}>
       {shown.map((p) => (
         <span key={p.client} className="doc-person" style={{ background: p.color }} aria-hidden>
-          {initials(p.name)}
+          {isolate(initials(p.name))}
         </span>
       ))}
       {people.length > shown.length && (
@@ -535,7 +535,7 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
       setValue(docTitle(name));
     }
   };
-  if (!canRename) return <h1 className="doc-title doc-title-static">{docTitle(name)}</h1>;
+  if (!canRename) return <h1 className="doc-title doc-title-static">{isolate(docTitle(name))}</h1>;
   return (
     <input
       className="doc-title"
@@ -556,10 +556,10 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
 }
 
 const STYLES = [
-  { id: "p", label: "Text" },
-  { id: "h1", label: "Heading 1" },
-  { id: "h2", label: "Heading 2" },
-  { id: "h3", label: "Heading 3" },
+  { id: "p", get label() { return t("Text"); } },
+  { id: "h1", get label() { return t("Heading 1"); } },
+  { id: "h2", get label() { return t("Heading 2"); } },
+  { id: "h3", get label() { return t("Heading 3"); } },
 ] as const;
 
 function Toolbar({
@@ -632,7 +632,7 @@ function Toolbar({
       >
         {STYLES.map((o) => (
           <option key={o.id} value={o.id}>
-            {o.label}
+            {isolate(o.label)}
           </option>
         ))}
       </select>
@@ -643,8 +643,8 @@ function Toolbar({
       <Tool label={t("Strikethrough")} icon={Strikethrough} active={s.strike} onClick={() => run().toggleStrike().run()} />
       <Tool label={t("Highlight")} icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
       <Tool label={t("Code")} icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
-      <Tool label={s.link ? "Edit link" : "Link"} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
-      <Tool label={adding ? "Adding the image…" : "Image"} icon={ImagePlus} disabled={adding} onClick={pickImages} />
+      <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
+      <Tool label={adding ? t("Adding the image…") : t("Image")} icon={ImagePlus} disabled={adding} onClick={pickImages} />
       {s.image && (
         <button type="button" className="doc-tool doc-tool-text" onMouseDown={(e) => e.preventDefault()} onClick={() => setDescribing(true)}>
           {t("Describe image")}
@@ -673,7 +673,7 @@ function Toolbar({
             <option value="">{t("Plain quote")}</option>
             {CALLOUTS.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.label} callout
+                {t("{label} callout", { label: c.label })}
               </option>
             ))}
           </select>
@@ -696,17 +696,17 @@ function Toolbar({
                   go();
                 }}
               >
-                {label}
+                {isolate(label)}
               </MenuItem>
             );
           return (
             <>
-              {item(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), "Insert a table", false)}
-              {item(() => run().addRowAfter().run(), "Add a row below")}
-              {item(() => run().addColumnAfter().run(), "Add a column to the right")}
-              {item(() => run().deleteRow().run(), "Delete the row")}
-              {item(() => run().deleteColumn().run(), "Delete the column")}
-              {item(() => run().deleteTable().run(), "Delete the table")}
+              {item(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), t("Insert a table"), false)}
+              {item(() => run().addRowAfter().run(), t("Add a row below"))}
+              {item(() => run().addColumnAfter().run(), t("Add a column to the right"))}
+              {item(() => run().deleteRow().run(), t("Delete the row"))}
+              {item(() => run().deleteColumn().run(), t("Delete the column"))}
+              {item(() => run().deleteTable().run(), t("Delete the table"))}
             </>
           );
         }}
@@ -788,7 +788,7 @@ function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }
     </>
   );
   return (
-    <Dialog open onClose={onClose} title={current ? "Edit link" : "Add a link"} footer={footer}>
+    <Dialog open onClose={onClose} title={current ? t("Edit link") : t("Add a link")} footer={footer}>
       <form id="doc-link-form" onSubmit={save}>
         <Field label={t("Address")} htmlFor="doc-link-href" error={error ?? undefined}>
           <input
@@ -824,7 +824,7 @@ function TemplateDialog({ file, title, unsaved, onClose }: { file: string; title
     try {
       await api.post("/api/v1/DocsTemplate", { name: name.trim(), category, description: description.trim() || null, source_document: file });
       await qc.invalidateQueries({ queryKey: ["docs", "templates"] });
-      toast(`“${name.trim()}” is a template in Docs`);
+      toast(t("“{name}” is a template in Docs", { name: name.trim() }));
       onClose();
     } catch (err) {
       toast(errorMessage(err), "error");
@@ -849,7 +849,7 @@ function TemplateDialog({ file, title, unsaved, onClose }: { file: string; title
         <Field label={t("Category")} htmlFor="doc-template-category">
           <select id="doc-template-category" className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORIES.map((c) => (
-              <option key={c}>{c}</option>
+              <option key={c}>{isolate(c)}</option>
             ))}
           </select>
         </Field>

@@ -1,3 +1,4 @@
+import { t } from "@ferrum/client";
 // What the `/` menu offers: the blocks a document is made of, in words a person would use to look
 // for them. Pure, so the order and the search are tested without a browser; what each one does to
 // the editor is EditorMenus.tsx.
@@ -33,24 +34,24 @@ export interface Block {
 }
 
 export const BLOCKS: Block[] = [
-  { id: "text", title: "Text", hint: "Plain paragraph", group: "Text", keywords: ["paragraph", "plain", "normal"] },
-  { id: "h1", title: "Heading 1", hint: "Big section heading", group: "Text", keywords: ["h1", "title", "header", "large"] },
-  { id: "h2", title: "Heading 2", hint: "Medium section heading", group: "Text", keywords: ["h2", "subtitle", "header", "medium"] },
-  { id: "h3", title: "Heading 3", hint: "Small section heading", group: "Text", keywords: ["h3", "subheading", "header", "small"] },
-  { id: "quote", title: "Quote", hint: "Quote someone or something", group: "Text", keywords: ["blockquote", "cite", "citation"] },
-  { id: "code", title: "Code block", hint: "Code in a box of its own", group: "Text", keywords: ["snippet", "monospace", "pre", "program"] },
-  { id: "bullets", title: "Bulleted list", hint: "A simple list", group: "Lists and tables", keywords: ["list", "ul", "unordered", "points"] },
-  { id: "numbers", title: "Numbered list", hint: "A list in order", group: "Lists and tables", keywords: ["list", "ol", "ordered", "steps"] },
-  { id: "checklist", title: "Checklist", hint: "Things to tick off", group: "Lists and tables", keywords: ["todo", "task", "tasks", "checkbox", "to-do"] },
-  { id: "table", title: "Table", hint: "Rows and columns", group: "Lists and tables", keywords: ["grid", "rows", "columns", "spreadsheet"] },
-  { id: "note", title: "Note", hint: "A callout for something to know", group: "Callouts", keywords: ["callout", "info", "information", "box", "aside"] },
-  { id: "tip", title: "Tip", hint: "A callout for good advice", group: "Callouts", keywords: ["callout", "hint", "advice", "success", "box"] },
-  { id: "warning", title: "Warning", hint: "A callout for something to watch", group: "Callouts", keywords: ["callout", "caution", "careful", "box"] },
-  { id: "alert", title: "Alert", hint: "A callout for something serious", group: "Callouts", keywords: ["callout", "danger", "error", "important", "box"] },
-  { id: "image", title: "Image", hint: "Upload a picture", group: "Insert", keywords: ["picture", "photo", "img", "upload", "screenshot"] },
-  { id: "divider", title: "Divider", hint: "A line between sections", group: "Insert", keywords: ["line", "rule", "hr", "separator", "break"] },
-  { id: "date", title: "Today's date", hint: "Put today's date in the text", group: "Insert", keywords: ["day", "time", "calendar", "now"] },
-  { id: "mention", title: "Mention", hint: "Name a person or a record", group: "Insert", keywords: ["person", "people", "at", "link", "record", "tag"] },
+  { id: "text", get title() { return t("Text"); }, get hint() { return t("Plain paragraph"); }, group: "Text", keywords: ["paragraph", "plain", "normal"] },
+  { id: "h1", get title() { return t("Heading 1"); }, get hint() { return t("Big section heading"); }, group: "Text", keywords: ["h1", "title", "header", "large"] },
+  { id: "h2", get title() { return t("Heading 2"); }, get hint() { return t("Medium section heading"); }, group: "Text", keywords: ["h2", "subtitle", "header", "medium"] },
+  { id: "h3", get title() { return t("Heading 3"); }, get hint() { return t("Small section heading"); }, group: "Text", keywords: ["h3", "subheading", "header", "small"] },
+  { id: "quote", get title() { return t("Quote"); }, get hint() { return t("Quote someone or something"); }, group: "Text", keywords: ["blockquote", "cite", "citation"] },
+  { id: "code", get title() { return t("Code block"); }, get hint() { return t("Code in a box of its own"); }, group: "Text", keywords: ["snippet", "monospace", "pre", "program"] },
+  { id: "bullets", get title() { return t("Bulleted list"); }, get hint() { return t("A simple list"); }, group: "Lists and tables", keywords: ["list", "ul", "unordered", "points"] },
+  { id: "numbers", get title() { return t("Numbered list"); }, get hint() { return t("A list in order"); }, group: "Lists and tables", keywords: ["list", "ol", "ordered", "steps"] },
+  { id: "checklist", get title() { return t("Checklist"); }, get hint() { return t("Things to tick off"); }, group: "Lists and tables", keywords: ["todo", "task", "tasks", "checkbox", "to-do"] },
+  { id: "table", get title() { return t("Table"); }, get hint() { return t("Rows and columns"); }, group: "Lists and tables", keywords: ["grid", "rows", "columns", "spreadsheet"] },
+  { id: "note", get title() { return t("Note"); }, get hint() { return t("A callout for something to know"); }, group: "Callouts", keywords: ["callout", "info", "information", "box", "aside"] },
+  { id: "tip", get title() { return t("Tip"); }, get hint() { return t("A callout for good advice"); }, group: "Callouts", keywords: ["callout", "hint", "advice", "success", "box"] },
+  { id: "warning", get title() { return t("Warning"); }, get hint() { return t("A callout for something to watch"); }, group: "Callouts", keywords: ["callout", "caution", "careful", "box"] },
+  { id: "alert", get title() { return t("Alert"); }, get hint() { return t("A callout for something serious"); }, group: "Callouts", keywords: ["callout", "danger", "error", "important", "box"] },
+  { id: "image", get title() { return t("Image"); }, get hint() { return t("Upload a picture"); }, group: "Insert", keywords: ["picture", "photo", "img", "upload", "screenshot"] },
+  { id: "divider", get title() { return t("Divider"); }, get hint() { return t("A line between sections"); }, group: "Insert", keywords: ["line", "rule", "hr", "separator", "break"] },
+  { id: "date", get title() { return t("Today's date"); }, get hint() { return t("Put today's date in the text"); }, group: "Insert", keywords: ["day", "time", "calendar", "now"] },
+  { id: "mention", get title() { return t("Mention"); }, get hint() { return t("Name a person or a record"); }, group: "Insert", keywords: ["person", "people", "at", "link", "record", "tag"] },
 ];
 
 /** The blocks that match what was typed after the slash, best first: a title starting with it, a word

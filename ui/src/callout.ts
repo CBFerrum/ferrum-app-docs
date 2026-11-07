@@ -4,12 +4,13 @@
 // shared document changes.
 
 import { Extension } from "@tiptap/core";
+import { t } from "@ferrum/client";
 
 export const CALLOUTS = [
-  { id: "note", label: "Note" },
-  { id: "tip", label: "Tip" },
-  { id: "warning", label: "Warning" },
-  { id: "alert", label: "Alert" },
+  { id: "note", get label() { return t("Note"); } },
+  { id: "tip", get label() { return t("Tip"); } },
+  { id: "warning", get label() { return t("Warning"); } },
+  { id: "alert", get label() { return t("Alert"); } },
 ] as const;
 
 export type CalloutKind = (typeof CALLOUTS)[number]["id"];

@@ -13,6 +13,7 @@ import { Fragment, type MarkType, type Node as PMNode, Slice } from "@tiptap/pm/
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { ReplaceStep } from "@tiptap/pm/transform";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
+import { t } from "@ferrum/client";
 
 export interface Suggester {
   id: string;
@@ -52,7 +53,7 @@ function suggestionMark(name: "insertion" | "deletion", tag: "ins" | "del") {
         "data-name": mark.attrs.name,
         "data-at": mark.attrs.at,
         class: name === "insertion" ? "doc-ins" : "doc-del",
-        title: `${name === "insertion" ? "Suggested" : "Suggested removing"} by ${mark.attrs.name || "someone"}`,
+        title: t("{value} by {value2}", { value: name === "insertion" ? "Suggested" : "Suggested removing", value2: String(mark.attrs.name || "someone") }),
       }),
       0,
     ],

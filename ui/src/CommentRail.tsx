@@ -6,7 +6,7 @@
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, errorMessage, formatDateTime, t as tr } from "@ferrum/client";
+import { api, errorMessage, formatDateTime, t as tr, isolate } from "@ferrum/client";
 import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
@@ -78,7 +78,7 @@ export function CommentRail({
   // timer in `commentsQuery` stays for where live updates do not reach.
   useLiveEntity("DriveComment", useCallback(() => void qc.invalidateQueries({ queryKey: ["drive", "comments", file] }), [qc, file]));
   const mentions = (ids: string[]) => people.filter((p) => ids.includes(p.id)).map((p) => p.email);
-  const name = (email: string | null) => people.find((p) => p.email === email)?.full_name || email || "Someone";
+  const name = (email: string | null) => people.find((p) => p.email === email)?.full_name || email || tr("Someone");
 
   /** The thread in view: its text selected and scrolled to. */
   const show = (t: Thread) => {
@@ -119,7 +119,7 @@ export function CommentRail({
     }
   };
   const remove = async (c: DriveComment, thread: boolean) => {
-    const ok = await confirmDialog({ title: thread ? "Delete this thread and its replies?" : "Delete this reply?", confirmLabel: "Delete", danger: true });
+    const ok = await confirmDialog({ title: thread ? tr("Delete this thread and its replies?") : tr("Delete this reply?"), confirmLabel: tr("Delete"), danger: true });
     if (!ok) return;
     try {
       await act("delete_comment", { comment: c.id });
@@ -132,17 +132,17 @@ export function CommentRail({
   const one = (c: DriveComment, thread: boolean) => (
     <div className="doc-thread-comment" key={c.id}>
       <div className="doc-thread-head">
-        <strong>{name(c.author)}</strong>
+        <strong>{isolate(name(c.author))}</strong>
         <time className="faint" dateTime={c.created_at}>
-          {formatDateTime(c.created_at)}
+          {isolate(formatDateTime(c.created_at))}
         </time>
         {(c.mine || canManage) && (
-          <button type="button" className="doc-thread-link" onClick={() => void remove(c, thread)} aria-label={thread ? "Delete the thread" : "Delete the reply"}>
+          <button type="button" className="doc-thread-link" onClick={() => void remove(c, thread)} aria-label={thread ? tr("Delete the thread") : tr("Delete the reply")}>
             {tr("Delete")}
           </button>
         )}
       </div>
-      <p className="doc-thread-body">{c.body}</p>
+      <p className="doc-thread-body">{isolate(c.body)}</p>
     </div>
   );
 
@@ -182,23 +182,23 @@ export function CommentRail({
                 <button type="button" className="doc-proposal-what" onClick={() => showProposal(s)}>
                   {s.deleted && s.inserted ? (
                     <>
-                      {tr("Replace")} <del className="doc-del">{s.deleted}</del> with <ins className="doc-ins">{s.inserted}</ins>
+                      {tr("Replace")} <del className="doc-del">{isolate(s.deleted)}</del> {tr("with")} <ins className="doc-ins">{isolate(s.inserted)}</ins>
                     </>
                   ) : s.inserted ? (
                     <>
-                      {tr("Add")} <ins className="doc-ins">{s.inserted}</ins>
+                      {tr("Add")} <ins className="doc-ins">{isolate(s.inserted)}</ins>
                     </>
                   ) : (
                     <>
-                      {tr("Remove")} <del className="doc-del">{s.deleted}</del>
+                      {tr("Remove")} <del className="doc-del">{isolate(s.deleted)}</del>
                     </>
                   )}
                 </button>
                 <div className="doc-thread-head">
-                  <strong>{s.name || "Someone"}</strong>
+                  <strong>{s.name || tr("Someone")}</strong>
                   {s.at && (
                     <time className="faint" dateTime={s.at}>
-                      {formatDateTime(s.at)}
+                      {isolate(formatDateTime(s.at))}
                     </time>
                   )}
                 </div>
@@ -219,7 +219,7 @@ export function CommentRail({
       )}
       {draft && (
         <section className="doc-thread is-active" aria-label={tr("New comment")}>
-          <blockquote className="doc-thread-quote">{draft.quote}</blockquote>
+          <blockquote className="doc-thread-quote">{isolate(draft.quote)}</blockquote>
           <Composer people={people} onPost={start} />
           <Button size="sm" variant="ghost" onClick={onDraftDone}>
             {tr("Cancel")}
@@ -231,8 +231,8 @@ export function CommentRail({
           const here = places.get(t.root.id);
           return (
             <li key={t.root.id} className={`doc-thread${active === t.root.id ? " is-active" : ""}`}>
-              <button type="button" className="doc-thread-quote" onClick={() => show(t)} aria-label={`Show the text: ${t.root.quote ?? ""}`}>
-                {t.root.quote}
+              <button type="button" className="doc-thread-quote" onClick={() => show(t)} aria-label={tr("Show the text: {value}", { value: t.root.quote ?? "" })}>
+                {isolate(t.root.quote ?? "")}
               </button>
               {!here && <p className="faint">{tr("The text it was on has been removed.")}</p>}
               {one(t.root, true)}
@@ -260,10 +260,10 @@ export function CommentRail({
           <ul className="doc-threads">
             {resolved.map((t) => (
               <li key={t.root.id} className="doc-thread is-resolved">
-                <blockquote className="doc-thread-quote">{t.root.quote}</blockquote>
+                <blockquote className="doc-thread-quote">{isolate(t.root.quote ?? "")}</blockquote>
                 {one(t.root, true)}
                 {t.replies.map((r) => one(r, false))}
-                <p className="faint">{tr("Resolved by")} {name(t.root.resolved_by)}</p>
+                <p className="faint">{tr("Resolved by")} {isolate(name(t.root.resolved_by))}</p>
                 {canComment && (
                   <Button size="sm" variant="ghost" onClick={() => void resolve(t, false)}>
                     {tr("Reopen")}
