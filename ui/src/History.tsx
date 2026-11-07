@@ -238,7 +238,7 @@ export function HistoryPage() {
               </Button>
             </div>
             <div className="doc-compare-actions">
-              <Menu label={t("Download")} ariaLabel={`Download version ${version.version}`} buttonClass="btn btn-default btn-sm">
+              <Menu label={t("Download")} ariaLabel={t("Download version {version}", { version: version.version })} buttonClass="btn btn-default btn-sm">
                 {(close) => (
                   <>
                     {(

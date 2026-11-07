@@ -1,3 +1,4 @@
+import { t } from "@ferrum/client";
 // A document's versions as Drive keeps them, and which two the history page compares. Pure, so the
 // choices are tested without a browser.
 
@@ -46,18 +47,18 @@ export function sides(versions: Version[], v: number, against: Against): { older
 }
 
 /** What a side is called above its page. */
-export const sideName = (w: Which) => (w === "current" ? "The text now" : w === "start" ? "Nothing yet" : `Version ${w}`);
+export const sideName = (w: Which) => (w === "current" ? "The text now" : w === "start" ? "Nothing yet" : t("Version {w}", { w }));
 
 /** A size in plain units. */
 export function fileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes < 1024 * 1024) return t("{n} KB", { n: Math.round(bytes / 1024) });
+  return t("{value} MB", { value: (bytes / (1024 * 1024)).toFixed(1) });
 }
 
 /** The change in words, as a sentence: "12 words added, 3 removed". */
 export function summary(added: number, removed: number): string {
   const n = (c: number) => `${c} ${c === 1 ? "word" : "words"}`;
   if (!added && !removed) return "No changes in the words";
-  return [added ? `${n(added)} added` : "", removed ? (added ? `${removed} removed` : `${n(removed)} removed`) : ""].filter(Boolean).join(", ");
+  return [added ? t("{added} added", { added: n(added) }) : "", removed ? (added ? t("{removed} removed", { removed }) : t("{removed} removed", { removed: n(removed) })) : ""].filter(Boolean).join(", ");
 }

@@ -3,6 +3,7 @@
 // the browser, and sent as that. This module is loaded when somebody imports, not with the page.
 
 import { MAX_MARKDOWN, docxToMarkdown, guardLine } from "./docx";
+import { t } from "@ferrum/client";
 
 /** What the file chooser offers. */
 export const IMPORT_TYPES = ".docx,.md,.markdown,.txt,text/markdown,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -71,7 +72,7 @@ export async function importFile(file: File): Promise<Made> {
   if (kind === "doc") throw new Error("Word 97–2003 files (.doc) cannot be imported. Open it in Word and save it as .docx first.");
   if (["odt", "rtf", "pages", "pdf"].includes(kind)) throw new Error(`.${kind} files cannot be imported. Save it as a Word document (.docx) or as Markdown first.`);
   if (!["docx", "md", "markdown", "txt", "text"].includes(kind)) throw new Error("Only Word documents (.docx), Markdown (.md) and text (.txt) files can be imported.");
-  if (file.size > MAX_FILE) throw new Error(`The file is over ${MAX_FILE >> 20} MB, which is more than can be imported.`);
+  if (file.size > MAX_FILE) throw new Error(t("The file is over {value} MB, which is more than can be imported.", { value: MAX_FILE >> 20 }));
   const bytes = new Uint8Array(await file.arrayBuffer());
   const notes: string[] = [];
   let title = titleOf(file.name);
@@ -79,7 +80,7 @@ export async function importFile(file: File): Promise<Made> {
   if (kind === "docx") {
     const made = await docxToMarkdown(bytes);
     markdown = made.markdown;
-    if (made.pictures) notes.push(`${made.pictures === 1 ? "1 picture was" : `${made.pictures} pictures were`} left out: add ${made.pictures === 1 ? "it" : "them"} again in the document.`);
+    if (made.pictures) notes.push((made.pictures === 1 ? t("1 picture was left out: add it again in the document.") : t("{pictures} pictures were left out: add them again in the document.", { pictures: made.pictures })));
   } else {
     const text = new TextDecoder().decode(bytes).replace(/^﻿/, "").replace(/\r\n?/g, "\n");
     if (kind === "txt" || kind === "text") markdown = textToMarkdown(text);
@@ -88,7 +89,7 @@ export async function importFile(file: File): Promise<Made> {
       const pictures = pictureLinks(front.markdown);
       markdown = pictures.markdown;
       title = front.title?.slice(0, 120) ?? title;
-      if (pictures.changed) notes.push(`${pictures.changed === 1 ? "1 picture is" : `${pictures.changed} pictures are`} a link now: documents keep pictures that are added to them.`);
+      if (pictures.changed) notes.push((pictures.changed === 1 ? t("1 picture is a link now: documents keep pictures that are added to them.") : t("{changed} pictures are a link now: documents keep pictures that are added to them.", { changed: pictures.changed })));
     }
   }
   if (!markdown.trim()) throw new Error("The file has no text to import.");

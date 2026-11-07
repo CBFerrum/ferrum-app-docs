@@ -212,7 +212,7 @@ export function DocsPage() {
   };
 
   const clear = () => set({ q: null, owner: null, changed: null, sort: null }, true);
-  const where = inFolder ? `in “${inFolder.name}”` : "";
+  const where = inFolder ? tr("in “{name}”", { name: inFolder.name }) : "";
   const heading = query ? tr("Documents matching “{query}”", { query }) : folderId ? (inFolder ? inFolder.name : tr("Folder")) : VIEWS.find((v) => v.id === view)!.label;
   // The folder a rail entry opens, and whether the page is inside it.
   const top = listing?.crumbs?.[0]?.id ?? folderId;
@@ -472,7 +472,7 @@ export function DocsPage() {
                           <button type="button" className="docs-icon-btn" aria-pressed={!!d.starred} aria-label={d.starred ? tr("Remove the star from {title}", { title }) : tr("Star {title}", { title })} title={d.starred ? tr("Starred") : tr("Star")} onClick={() => void star(d)}>
                             <Star size={16} aria-hidden fill={d.starred ? "currentColor" : "none"} />
                           </button>
-                          <Menu ariaLabel={`Actions for ${title}`} label={<MoreHorizontal size={16} aria-hidden />} buttonClass="docs-icon-btn">
+                          <Menu ariaLabel={tr("Actions for {title}", { title })} label={<MoreHorizontal size={16} aria-hidden />} buttonClass="docs-icon-btn">
                             {(close) => (
                               <>
                                 <MenuItem

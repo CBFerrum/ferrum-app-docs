@@ -10,7 +10,7 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { type EditorState, NodeSelection } from "@tiptap/pm/state";
-import { shell } from "@ferrum/client";
+import { shell, t } from "@ferrum/client";
 
 export type MentionKind = "person" | "record";
 
@@ -181,7 +181,7 @@ export function planNotices(doc: PMNode, pending: ReadonlyMap<string, Pending>):
 }
 
 /** What the comment that tells someone says (their bell and mail show its first words). */
-export const noticeBody = (context: string) => (context ? `Mentioned in the text: “${context}”` : "Mentioned in the text.");
+export const noticeBody = (context: string) => (context ? t("Mentioned in the text: “{context}”", { context }) : "Mentioned in the text.");
 
 /** The people whose name or address matches `query`, best first: a name starting with it, a word of
  *  the name or the address starting with it, then anywhere. */
