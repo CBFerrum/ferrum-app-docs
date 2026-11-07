@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Folder, MoreHorizontal, Star, Upload } from "lucide-react";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { api, errorMessage, formatDateTime, relativeTime, shell } from "@ferrum/client";
+import { api, errorMessage, formatDateTime, relativeTime, shell, t as tr } from "@ferrum/client";
 import { Badge, EmptyState, ErrorState, FamilyNav, Icon, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { can, useMe, useMetaIndex, usePeople } from "@ferrum/records";
 import { CHANGES, type DocItem, OWNERS, SORTS, VIEWS, carriesFiles, changedFrom, isDocument, isFolder, narrow, ordered, ownerName, pick } from "./docslist";
@@ -153,8 +153,8 @@ export function DocsPage() {
   /** A document from each Word or Markdown file: one opens at once, several are added to the list. */
   const importFiles = async (files: File[]) => {
     if (!files.length || busy) return;
-    if (!space.data) return toast("Docs is still loading: try again in a moment", "info");
-    if (!mayCreate) return toast("You can only read this folder: open one of yours to import into", "error");
+    if (!space.data) return toast(tr("Docs is still loading: try again in a moment"), "info");
+    if (!mayCreate) return toast(tr("You can only read this folder: open one of yours to import into"), "error");
     setBusy("import");
     const made: { id: string }[] = [];
     try {
@@ -204,7 +204,7 @@ export function DocsPage() {
     patch((items) => items.filter((i) => i.id !== d.id));
     try {
       await act("trash", { item: d.id });
-      toast("Moved to the trash");
+      toast(tr("Moved to the trash"));
     } catch (e) {
       toast(errorMessage(e), "error");
       void qc.invalidateQueries({ queryKey: ["docs", "list"] });
@@ -272,19 +272,19 @@ export function DocsPage() {
     >
       <FamilyNav />
       <div className="page-head">
-        <h1 className="page-title">Docs</h1>
+        <h1 className="page-title">{tr("Docs")}</h1>
         {manages && (
           <a href="/open/DocsTemplate" className="btn btn-default btn-sm">
-            Manage templates
+            {tr("Manage templates")}
           </a>
         )}
       </div>
 
       <section aria-labelledby={`${id}-start`}>
         <h2 id={`${id}-start`} className="docs-heading">
-          Start a document{where && <span className="faint"> {where}</span>}
+          {tr("Start a document")}{where && <span className="faint"> {where}</span>}
         </h2>
-        {!mayCreate && <p className="muted">You can only read this folder. Open one of yours to start a document.</p>}
+        {!mayCreate && <p className="muted">{tr("You can only read this folder. Open one of yours to start a document.")}</p>}
         <div className="docs-gallery">
           <button type="button" className="docs-template docs-template-blank" disabled={!!busy || !mayCreate} onClick={() => void create(null)}>
             <span className="docs-template-sheet" aria-hidden>
@@ -292,12 +292,12 @@ export function DocsPage() {
             </span>
             <span className="docs-template-name">{busy === "blank" ? "Opening…" : "Blank document"}</span>
           </button>
-          <button type="button" className="docs-template docs-template-blank" disabled={!!busy || !mayCreate} onClick={() => chooser.current?.click()} aria-label="Import a Word or Markdown file as a new document">
+          <button type="button" className="docs-template docs-template-blank" disabled={!!busy || !mayCreate} onClick={() => chooser.current?.click()} aria-label={tr("Import a Word or Markdown file as a new document")}>
             <span className="docs-template-sheet" aria-hidden>
               <Upload size={20} />
             </span>
             <span className="docs-template-name">{busy === "import" ? "Importing…" : "Import a file"}</span>
-            <span className="faint docs-template-category">Word or Markdown</span>
+            <span className="faint docs-template-category">{tr("Word or Markdown")}</span>
           </button>
           {templates.data?.map((t) => (
             <button
@@ -319,7 +319,7 @@ export function DocsPage() {
             </button>
           ))}
         </div>
-        {templates.error && <p className="muted">Templates are not available: {errorMessage(templates.error)}</p>}
+        {templates.error && <p className="muted">{tr("Templates are not available:")} {errorMessage(templates.error)}</p>}
         <input
           ref={chooser}
           type="file"
@@ -335,11 +335,11 @@ export function DocsPage() {
       </section>
 
       <div className="docs-browse">
-        <nav className="docs-rail" aria-label="Where your documents are">
+        <nav className="docs-rail" aria-label={tr("Where your documents are")}>
           <ul>
             {VIEWS.map((v) => railLink(v.label, { view: v.id === "recent" ? null : v.id, folder: null }, !folderId && view === v.id, "view"))}
           </ul>
-          <h2 className="docs-rail-title">Folders</h2>
+          <h2 className="docs-rail-title">{tr("Folders")}</h2>
           <ul>
             {space.data && railLink("My documents", { folder: space.data.root_folder, view: null }, !!top && top === space.data.root_folder, "folder")}
             {teams.data?.map((t) => railLink(t.name, { folder: t.id, view: null }, top === t.id, "folder"))}
@@ -351,7 +351,7 @@ export function DocsPage() {
             {heading}
           </h2>
           {inFolder && listing?.crumbs && (
-            <nav aria-label="Folder path">
+            <nav aria-label={tr("Folder path")}>
               <ol className="docs-crumbs">
                 {listing.crumbs.map((c, i) => (
                   <li key={c.id}>
@@ -370,13 +370,13 @@ export function DocsPage() {
           <div className="docs-bar">
             <form role="search" className="docs-search" onSubmit={submit}>
               <label htmlFor={`${id}-q`} className="sr-only">
-                Search documents
+                {tr("Search documents")}
               </label>
               <input id={`${id}-q`} className="input" type="search" placeholder={folderId ? "Search this folder by title or words inside" : "Search by title or words inside"} value={typed} onChange={(e) => setTyped(e.target.value)} />
             </form>
-            <div className="docs-chips" role="group" aria-label="Narrow the list">
+            <div className="docs-chips" role="group" aria-label={tr("Narrow the list")}>
               <label className="docs-chip">
-                <span>Owner</span>
+                <span>{tr("Owner")}</span>
                 <select value={owner} onChange={(e) => set({ owner: e.target.value === "any" ? null : e.target.value }, true)}>
                   {OWNERS.map((o) => (
                     <option key={o.id} value={o.id}>
@@ -386,7 +386,7 @@ export function DocsPage() {
                 </select>
               </label>
               <label className="docs-chip">
-                <span>Changed</span>
+                <span>{tr("Changed")}</span>
                 <select value={changed} onChange={(e) => set({ changed: e.target.value === "any" ? null : e.target.value }, true)}>
                   {CHANGES.map((o) => (
                     <option key={o.id} value={o.id}>
@@ -396,7 +396,7 @@ export function DocsPage() {
                 </select>
               </label>
               <label className="docs-chip">
-                <span>Order</span>
+                <span>{tr("Order")}</span>
                 <select value={sort} onChange={(e) => set({ sort: e.target.value === "default" ? null : e.target.value }, true)}>
                   {SORTS.map((o) => (
                     <option key={o.id} value={o.id}>
@@ -408,19 +408,19 @@ export function DocsPage() {
             </div>
           </div>
           {docs.error ? (
-            <ErrorState error={docs.error} title="Documents are not available" onRetry={() => void docs.refetch()} />
+            <ErrorState error={docs.error} title={tr("Documents are not available")} onRetry={() => void docs.refetch()} />
           ) : !docs.data ? (
-            <Spinner label="Loading documents" />
+            <Spinner label={tr("Loading documents")} />
           ) : !rows.length ? (
             <EmptyState title={emptyTitle} icon="file">
               {query || filtered ? (
                 <button type="button" className="btn btn-default btn-sm" onClick={clear}>
-                  Clear the search and choices
+                  {tr("Clear the search and choices")}
                 </button>
               ) : view === "starred" && !folderId ? (
-                <p className="muted">Star a document to find it here again.</p>
+                <p className="muted">{tr("Star a document to find it here again.")}</p>
               ) : mayCreate ? (
-                <p className="muted">Start one above, blank, from a template or from a file.</p>
+                <p className="muted">{tr("Start one above, blank, from a template or from a file.")}</p>
               ) : null}
             </EmptyState>
           ) : (
@@ -444,13 +444,13 @@ export function DocsPage() {
                             {title}
                           </Link>
                         )}
-                        {d.is_team && <Badge>Team folder</Badge>}
+                        {d.is_team && <Badge>{tr("Team folder")}</Badge>}
                         {here.length > 0 && (
                           <Badge tone="green" title={presenceLabel(here)}>
                             {presenceLabel(here)}
                           </Badge>
                         )}
-                        {!folder && (d.permission === "View" || d.permission === "Comment") ? <Badge>View only</Badge> : null}
+                        {!folder && (d.permission === "View" || d.permission === "Comment") ? <Badge>{tr("View only")}</Badge> : null}
                       </div>
                       {d.snippet && (
                         <p className="docs-snippet">
@@ -461,7 +461,7 @@ export function DocsPage() {
                         {folder ? "Folder" : `${d.shared_by ? "Shared by " : ""}${who}${who ? " · " : ""}`}
                         {!folder && (
                           <time dateTime={d.modified_at} title={formatDateTime(d.modified_at)}>
-                            Changed {relativeTime(d.modified_at)}
+                            {tr("Changed")} {relativeTime(d.modified_at)}
                           </time>
                         )}
                         {!folder && d.modified_by ? ` by ${ownerName(d.modified_by, me, people)}` : ""}
@@ -481,7 +481,7 @@ export function DocsPage() {
                                     navigate(`/d/${d.id}`, { state: { from: "docs" } });
                                   }}
                                 >
-                                  Open
+                                  {tr("Open")}
                                 </MenuItem>
                                 <MenuItem
                                   onSelect={() => {
@@ -489,7 +489,7 @@ export function DocsPage() {
                                     navigate(`/d/${d.id}/history`);
                                   }}
                                 >
-                                  Version history
+                                  {tr("Version history")}
                                 </MenuItem>
                                 {canShare && allows(d.permission, "Manage") && (
                                   <MenuItem
@@ -500,7 +500,7 @@ export function DocsPage() {
                                         .catch((e: unknown) => toast(errorMessage(e), "error"));
                                     }}
                                   >
-                                    Share…
+                                    {tr("Share…")}
                                   </MenuItem>
                                 )}
                                 {allows(d.permission, "Edit") && (
@@ -511,7 +511,7 @@ export function DocsPage() {
                                       void trash(d);
                                     }}
                                   >
-                                    Move to the trash
+                                    {tr("Move to the trash")}
                                   </MenuItem>
                                 )}
                               </>
@@ -523,7 +523,7 @@ export function DocsPage() {
                   );
                 })}
               </ul>
-              {listing?.more && <p className="muted docs-more">Only the first {rows.length} are shown. Search, or narrow the list, to find the rest.</p>}
+              {listing?.more && <p className="muted docs-more">{tr("Only the first {length} are shown. Search, or narrow the list, to find the rest.", { length: rows.length })}</p>}
             </>
           )}
         </section>
@@ -533,7 +533,7 @@ export function DocsPage() {
         <div className="docs-drop" aria-hidden>
           <div className="docs-drop-box">
             <Upload size={28} />
-            <strong>Drop a Word or Markdown file to make a document from it</strong>
+            <strong>{tr("Drop a Word or Markdown file to make a document from it")}</strong>
           </div>
         </div>
       )}
@@ -559,6 +559,6 @@ export function NewDocument() {
     if (ahead) document.addEventListener("prerenderingchange", () => void start(), { once: true });
     else void start();
   }, [navigate]);
-  if (error) return <ErrorState error={error} title="The document could not be started" />;
-  return <Spinner label="Starting a document" />;
+  if (error) return <ErrorState error={error} title={tr("The document could not be started")} />;
+  return <Spinner label={tr("Starting a document")} />;
 }

@@ -8,6 +8,7 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, toast } from "@ferrum/kit";
 import { findKey, replaceAll, replaceOne, setFind } from "./find";
 import { Sep, Tool } from "./Tool";
+import { t } from "@ferrum/client";
 
 /** The words selected in one paragraph, to search for when the bar opens. */
 function selectedWords(editor: Editor): string {
@@ -98,36 +99,36 @@ export function FindBar({
   const status = !f.query ? "" : f.count === 0 ? "No matches" : `${f.current + 1} of ${f.count}${f.more ? "+" : ""}`;
 
   return (
-    <div className="doc-find" role="search" aria-label="Find in the document">
+    <div className="doc-find" role="search" aria-label={t("Find in the document")}>
       <div className="doc-find-row">
         <label className="sr-only" htmlFor={`${id}-find`}>
-          Find in the document
+          {t("Find in the document")}
         </label>
-        <input id={`${id}-find`} ref={input} className="input doc-find-input" type="search" placeholder="Find in the document" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={onFindKey} />
+        <input id={`${id}-find`} ref={input} className="input doc-find-input" type="search" placeholder={t("Find in the document")} autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={onFindKey} />
         <span className="doc-find-count" role="status" aria-live="polite">
           {status}
         </span>
-        <Tool label="Previous match (Shift+Enter)" icon={ChevronUp} disabled={!f.count} onClick={() => go(-1)} />
-        <Tool label="Next match (Enter)" icon={ChevronDown} disabled={!f.count} onClick={() => go(1)} />
-        <Tool label="Match case" icon={CaseSensitive} active={f.matchCase} onClick={() => editor.view.dispatch(setFind(editor.state, { matchCase: !f.matchCase }))} />
+        <Tool label={t("Previous match (Shift+Enter)")} icon={ChevronUp} disabled={!f.count} onClick={() => go(-1)} />
+        <Tool label={t("Next match (Enter)")} icon={ChevronDown} disabled={!f.count} onClick={() => go(1)} />
+        <Tool label={t("Match case")} icon={CaseSensitive} active={f.matchCase} onClick={() => editor.view.dispatch(setFind(editor.state, { matchCase: !f.matchCase }))} />
         {canReplace && (
           <>
             <Sep />
             <Tool label={replacing ? "Hide replace" : "Replace…"} icon={Replace} active={replacing} onClick={() => setReplacing(!replacing)} />
           </>
         )}
-        <Tool label="Close find" icon={X} onClick={close} />
+        <Tool label={t("Close find")} icon={X} onClick={close} />
       </div>
       {canReplace && replacing && (
         <div className="doc-find-row">
           <label className="sr-only" htmlFor={`${id}-with`}>
-            Replace with
+            {t("Replace with")}
           </label>
           <input
             id={`${id}-with`}
             className="input doc-find-input"
             type="text"
-            placeholder="Replace with"
+            placeholder={t("Replace with")}
             autoComplete="off"
             value={withText}
             onChange={(e) => setWithText(e.target.value)}
@@ -142,10 +143,10 @@ export function FindBar({
             }}
           />
           <Button size="sm" disabled={!f.count} onClick={replaceThis}>
-            Replace
+            {t("Replace")}
           </Button>
           <Button size="sm" disabled={!f.count} onClick={replaceEvery}>
-            Replace all
+            {t("Replace all")}
           </Button>
         </div>
       )}

@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { AtSign, Calendar, FileText, Heading1, Heading2, Heading3, Info, ImagePlus, Lightbulb, List, ListChecks, ListOrdered, Minus, OctagonAlert, Pilcrow, Quote, SquareCode, Table, TriangleAlert, type LucideIcon } from "lucide-react";
 import { type CSSProperties, type MutableRefObject, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { api, errorMessage, formatMoment, initials } from "@ferrum/client";
+import { api, errorMessage, formatMoment, initials, t } from "@ferrum/client";
 import { toast, useDebounced } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Block, type BlockId, findBlocks } from "./blocks";
@@ -175,7 +175,7 @@ export function Choices({ choices, index, listId, label, query, status }: { choi
       </div>
       {status}
       <div className="sr-only" role="status">
-        {choices.length === 1 ? "1 choice." : `${choices.length} choices.`} Use the up and down arrow keys, then Enter.
+        {choices.length === 1 ? "1 choice." : `${choices.length} choices.`} {t("Use the up and down arrow keys, then Enter.")}
       </div>
     </>
   );
@@ -198,7 +198,7 @@ function SlashMenu({ editor, open, listId, menu, pickImages }: { editor: Editor;
   });
   return (
     <Popup editor={editor} at={open.from}>
-      <Choices choices={choices} index={open.index} listId={listId} label="Blocks" query={open.query} />
+      <Choices choices={choices} index={open.index} listId={listId} label={t("Blocks")} query={open.query} />
     </Popup>
   );
 }
@@ -276,13 +276,13 @@ function MentionMenu({ editor, open, listId, menu, onMentioned }: { editor: Edit
           choices={choices}
           index={open.index}
           listId={listId}
-          label="People and records"
+          label={t("People and records")}
           query={open.query}
-          status={searching ? <div className="doc-pop-note">Searching records…</div> : null}
+          status={searching ? <div className="doc-pop-note">{t("Searching records…")}</div> : null}
         />
       ) : (
         <div className="doc-pop-note" role="status">
-          Looking for “{query}”…
+          {t("Looking for “{query}”…", { query })}
         </div>
       )}
     </Popup>
