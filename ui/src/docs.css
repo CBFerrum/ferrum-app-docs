@@ -25,7 +25,7 @@
   gap: 6px;
   padding: 0;
   color: var(--text);
-  text-align: left;
+  text-align: start;
   background: none;
   border: none;
   cursor: pointer;
@@ -278,7 +278,8 @@
     gap: 6px;
   }
   .docs-rail-title {
-    margin: 0 2px 0 8px;
+    margin-block: 0 0;
+    margin-inline: 8px 2px;
     white-space: nowrap;
   }
   .docs-rail-item {
@@ -303,7 +304,7 @@
   list-style: none;
 }
 .docs-crumbs li + li::before {
-  margin-right: 4px;
+  margin-inline-end: 4px;
   color: var(--faint);
   content: "/";
 }
@@ -325,7 +326,8 @@
   align-items: center;
   gap: 6px;
   height: 32px;
-  padding: 0 4px 0 12px;
+  padding-block: 0 0;
+  padding-inline: 12px 4px;
   color: var(--muted-foreground);
   font-size: 0.82rem;
   background: var(--surface);
