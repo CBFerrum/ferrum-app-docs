@@ -7,6 +7,7 @@
 // the rest are wholly removed or added. Formatting inside a line (bold, links) is not compared.
 
 import type { Node as PMNode } from "@tiptap/pm/model";
+import { t as tr } from "@ferrum/client";
 
 /** A stretch of a document, in its positions. */
 export interface Range {
@@ -81,7 +82,7 @@ export function linesOf(doc: PMNode): Line[] {
       return false;
     }
     if (block.isLeaf && block.isBlock) {
-      const text = block.type.name === "image" ? `[image ${String(block.attrs.image ?? "")}]` : `[${block.type.name}]`;
+      const text = block.type.name === "image" ? tr("[image {value}]", { value: String(block.attrs.image ?? "") }) : `[${block.type.name}]`;
       const end = pos + block.nodeSize;
       const after = new Array<number>(text.length).fill(end);
       out.push({ key: `${block.type.name}\u0001${text}`, text, start: pos, end, lo: [pos, ...after], hi: [end, ...after] });

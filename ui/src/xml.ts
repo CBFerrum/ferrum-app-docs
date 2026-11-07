@@ -1,3 +1,4 @@
+import { t } from "@ferrum/client";
 // A small XML reader for the parts of a Word file: elements, attributes and text, with the five named
 // entities and numeric ones. No doctype entities, no scripts, no network: what is read is only the
 // tree. Elements keep their prefix (`w:p`).
@@ -30,7 +31,7 @@ export function parseXml(src: string): XmlEl {
   const open: XmlEl[] = [root];
   let i = 0;
   const fail = (why: string): never => {
-    throw new Error(`The file's XML is damaged (${why}).`);
+    throw new Error(t("The file's XML is damaged ({why}).", { why }));
   };
   while (i < src.length) {
     const lt = src.indexOf("<", i);

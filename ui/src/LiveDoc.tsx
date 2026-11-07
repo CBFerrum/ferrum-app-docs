@@ -105,7 +105,7 @@ function inOtherField(target: EventTarget | null): boolean {
 export function statusText(s: Pick<CoeditState, "online" | "loaded" | "unsaved" | "closed">, keeps = false): string {
   if (s.closed) return "Not connected";
   if (!s.loaded) return "Opening…";
-  if (!s.online) return s.unsaved ? `Offline: your changes are kept in this ${keeps ? "browser" : "tab"} until the connection is back` : "Reconnecting…";
+  if (!s.online) return s.unsaved ? (keeps ? t("Offline: your changes are kept in this browser until the connection is back") : t("Offline: your changes are kept in this tab until the connection is back")) : "Reconnecting…";
   return s.unsaved ? "Saving…" : "Saved";
 }
 
@@ -192,7 +192,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
       ],
       editorProps: {
-        attributes: { class: "doc-body", "aria-label": `${title}, document`, spellcheck: "true" },
+        attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true" },
         // Pictures pasted or dropped in go up to Drive and into the text.
         handlePaste: (_view, event) => {
           const images = imageFiles(event.clipboardData?.files);
