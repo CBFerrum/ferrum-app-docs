@@ -17,7 +17,7 @@ import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import * as Y from "yjs";
-import { api, download, errorMessage, fetchBlob, formatDateTime, relativeTime } from "@ferrum/client";
+import { api, download, errorMessage, fetchBlob, formatDateTime, relativeTime, t } from "@ferrum/client";
 import { Alert, Badge, Button, EmptyState, ErrorState, Menu, MenuItem, Spinner, toast, useShellTitle } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Range, compare } from "./compare";
@@ -175,31 +175,31 @@ export function HistoryPage() {
 
   const back = (
     <Link className="btn btn-default btn-sm" to={`/d/${file}`} state={{ from: "docs" }}>
-      <ArrowLeft size={16} aria-hidden /> Back to the document
+      <ArrowLeft size={16} aria-hidden /> {t("Back to the document")}
     </Link>
   );
   let body;
   if (list.error || info.error) {
-    body = <ErrorState error={list.error ?? info.error} title="The versions could not be loaded" onRetry={() => void Promise.all([list.refetch(), info.refetch()])} />;
+    body = <ErrorState error={list.error ?? info.error} title={t("The versions could not be loaded")} onRetry={() => void Promise.all([list.refetch(), info.refetch()])} />;
   } else if (!list.data || !info.data) {
-    body = <Spinner label="Loading the versions" />;
+    body = <Spinner label={t("Loading the versions")} />;
   } else if (!version || !pair) {
     body = (
-      <EmptyState title="No versions yet" icon="file">
-        <p className="muted">A version is saved when the last person leaves the document, and every ten minutes while people type.</p>
+      <EmptyState title={t("No versions yet")} icon="file">
+        <p className="muted">{t("A version is saved when the last person leaves the document, and every ten minutes while people type.")}</p>
       </EmptyState>
     );
   } else {
     const failed = older.error ?? newer.error;
     body = (
       <div className="doc-history-body">
-        <nav className="doc-versions" aria-label="Versions">
+        <nav className="doc-versions" aria-label={t("Versions")}>
           <ul>
             {versions.map((v) => (
               <li key={v.id}>
                 <button type="button" className="doc-version" aria-current={v.version === version.version ? "true" : undefined} onClick={() => choose(v.version)}>
                   <span className="doc-version-name">
-                    Version {v.version} {v.current && <Badge tone="blue">Latest saved</Badge>}
+                    {t("Version {version}", { version: v.version })} {v.current && <Badge tone="blue">{t("Latest saved")}</Badge>}
                   </span>
                   <span className="doc-version-meta">
                     {when(v)} · {name(v.author)}
@@ -213,15 +213,15 @@ export function HistoryPage() {
         <section className="doc-compare" aria-label={`${sideName(pair.older)} compared with ${sideName(pair.newer)}`}>
           <div className="doc-compare-bar">
             <label className="doc-compare-with">
-              <span>Compare version {version.version} with</span>
+              <span>{t("Compare version {version} with", { version: version.version })}</span>
               <select className="input" value={against === "previous" || against === "current" ? against : String(against)} onChange={(e) => compareWith(e.target.value)}>
-                <option value="previous">The version before it</option>
-                <option value="current">The text now</option>
+                <option value="previous">{t("The version before it")}</option>
+                <option value="current">{t("The text now")}</option>
                 {versions
                   .filter((v) => v.version !== version.version)
                   .map((v) => (
                     <option key={v.id} value={String(v.version)}>
-                      Version {v.version}
+                      {t("Version {version}", { version: v.version })}
                     </option>
                   ))}
               </select>
@@ -230,15 +230,15 @@ export function HistoryPage() {
               <span role="status" aria-live="polite" className="doc-compare-count">
                 {diff ? (diff.changes.length ? `Change ${Math.min(step, diff.changes.length - 1) + 1} of ${diff.changes.length}` : "No changes") : ""}
               </span>
-              <Button size="sm" aria-label="Previous change" disabled={!diff || diff.changes.length < 2} onClick={() => setStep((s) => (s - 1 + diff!.changes.length) % diff!.changes.length)}>
+              <Button size="sm" aria-label={t("Previous change")} disabled={!diff || diff.changes.length < 2} onClick={() => setStep((s) => (s - 1 + diff!.changes.length) % diff!.changes.length)}>
                 <ChevronUp size={16} aria-hidden />
               </Button>
-              <Button size="sm" aria-label="Next change" disabled={!diff || diff.changes.length < 2} onClick={() => setStep((s) => (s + 1) % diff!.changes.length)}>
+              <Button size="sm" aria-label={t("Next change")} disabled={!diff || diff.changes.length < 2} onClick={() => setStep((s) => (s + 1) % diff!.changes.length)}>
                 <ChevronDown size={16} aria-hidden />
               </Button>
             </div>
             <div className="doc-compare-actions">
-              <Menu label="Download" ariaLabel={`Download version ${version.version}`} buttonClass="btn btn-default btn-sm">
+              <Menu label={t("Download")} ariaLabel={`Download version ${version.version}`} buttonClass="btn btn-default btn-sm">
                 {(close) => (
                   <>
                     {(
@@ -263,16 +263,16 @@ export function HistoryPage() {
                 )}
               </Menu>
               <Button size="sm" variant="primary" disabled={!canRestore} title={canRestore ? "Makes a new document from this version; the document keeps its text" : "Restoring needs permission to edit the document"} onClick={() => void restore()}>
-                Restore as a copy
+                {t("Restore as a copy")}
               </Button>
             </div>
           </div>
           <p className="doc-compare-summary">{diff ? summary(diff.wordsAdded, diff.wordsRemoved) : " "}</p>
           {failed ? (
-            <Alert tone="error">This version could not be opened: {errorMessage(failed)}</Alert>
+            <Alert tone="error">{t("This version could not be opened:")} {errorMessage(failed)}</Alert>
           ) : (
             <>
-              <div className="doc-pane-tabs" role="group" aria-label="Which page to show">
+              <div className="doc-pane-tabs" role="group" aria-label={t("Which page to show")}>
                 <button type="button" className="btn btn-default btn-sm" aria-pressed={narrow === "older"} onClick={() => setNarrow("older")}>
                   {sideName(pair.older)}
                 </button>
@@ -313,7 +313,7 @@ export function HistoryPage() {
       <header className="doc-bar">
         {back}
         <h1 className="doc-history-title">
-          Version history{title && <span className="faint"> · {title}</span>}
+          {t("Version history")}{title && <span className="faint"> · {title}</span>}
         </h1>
       </header>
       {body}

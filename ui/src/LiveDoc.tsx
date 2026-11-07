@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { api, download, errorMessage, initials, openPrint, saveBlob, shell } from "@ferrum/client";
+import { api, download, errorMessage, initials, openPrint, saveBlob, shell, t } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
@@ -129,13 +129,13 @@ export function LiveDocPage() {
   });
   if (info.error) {
     return (
-      <EmptyState title="This document cannot be opened" icon="file">
+      <EmptyState title={t("This document cannot be opened")} icon="file">
         <p className="muted">{errorMessage(info.error)}</p>
-        <a href="/drive/">Go to Drive</a>
+        <a href="/drive/">{t("Go to Drive")}</a>
       </EmptyState>
     );
   }
-  if (!file || !session || !info.data) return <Spinner label="Opening the document" />;
+  if (!file || !session || !info.data) return <Spinner label={t("Opening the document")} />;
   return <LiveDoc key={file} file={file} session={session} info={info.data} />;
 }
 
@@ -185,7 +185,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         ...documentExtensions(file),
         Placeholder.configure({ placeholder: "Type / for blocks and @ to mention someone, or just start writing" }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
-        Suggestions.configure({ onRefused: () => toast("While suggesting, only words change: switch to Editing to change formatting or structure") }),
+        Suggestions.configure({ onRefused: () => toast(t("While suggesting, only words change: switch to Editing to change formatting or structure")) }),
         Find,
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
         Collaboration.configure({ document: session.doc, field: "default" }),
@@ -311,7 +311,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const copy = async () => {
     try {
       const made = await act("copy", { item: file, to: info.parent, name: `Copy of ${info.name}` });
-      toast("Copy made");
+      toast(t("Copy made"));
       navigate(`/d/${made.id}`);
     } catch (e) {
       toast(errorMessage(e), "error");
@@ -340,7 +340,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   /** A comment on the selected words (Ctrl+Alt+M). */
   const startComment = () => {
     const a = editor ? anchorOf(editor.state) : null;
-    if (!a) return toast("Select the words to comment on");
+    if (!a) return toast(t("Select the words to comment on"));
     setActive(null);
     setDraft(a);
   };
@@ -387,41 +387,41 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     <div className="doc-page">
       <header className="doc-bar">
         {fromDocs ? (
-          <Link className="btn btn-default btn-sm" to="/" aria-label="Back to Docs">
-            <ArrowLeft size={16} aria-hidden /> Docs
+          <Link className="btn btn-default btn-sm" to="/" aria-label={t("Back to Docs")}>
+            <ArrowLeft size={16} aria-hidden /> {t("Docs")}
           </Link>
         ) : (
-          <a className="btn btn-default btn-sm" href={toDrive} aria-label="Back to Drive">
-            <ArrowLeft size={16} aria-hidden /> Drive
+          <a className="btn btn-default btn-sm" href={toDrive} aria-label={t("Back to Drive")}>
+            <ArrowLeft size={16} aria-hidden /> {t("Drive")}
           </a>
         )}
         <Title name={info.name} canRename={canEdit && !!space.data} rename={(name) => act("rename", { item: file, name }).then(() => qc.invalidateQueries({ queryKey: ["drive"] }))} />
         <span className="doc-status" role="status" aria-live="polite">
           {statusText(state, session.keeps)}
         </span>
-        {state.loaded && state.access === "read" && <Badge>View only</Badge>}
+        {state.loaded && state.access === "read" && <Badge>{t("View only")}</Badge>}
         <People people={here} />
         <div className="doc-bar-end">
-          <Button size="sm" aria-pressed={contents} onClick={() => showContents(!contents)} title="Contents: the headings, to jump to">
-            <TableOfContents size={16} aria-hidden /> Contents
+          <Button size="sm" aria-pressed={contents} onClick={() => showContents(!contents)} title={t("Contents: the headings, to jump to")}>
+            <TableOfContents size={16} aria-hidden /> {t("Contents")}
           </Button>
-          <Button size="sm" onClick={() => openFind(false)} title="Find in the document (Ctrl+F)">
-            <Search size={16} aria-hidden /> Find
+          <Button size="sm" onClick={() => openFind(false)} title={t("Find in the document (Ctrl+F)")}>
+            <Search size={16} aria-hidden /> {t("Find")}
           </Button>
           {allows(info.permission, "Manage") && canShare && (
             <Button size="sm" onClick={share}>
-              Share
+              {t("Share")}
             </Button>
           )}
           {canComment && (
-            <Button size="sm" disabled={!selected} onClick={startComment} title="Comment on the selected words (Ctrl+Alt+M)">
-              Comment
+            <Button size="sm" disabled={!selected} onClick={startComment} title={t("Comment on the selected words (Ctrl+Alt+M)")}>
+              {t("Comment")}
             </Button>
           )}
           <Button size="sm" aria-pressed={details} onClick={() => void toggleDetails()}>
-            Comments and history
+            {t("Comments and history")}
           </Button>
-          <Menu label="File" ariaLabel="File menu" buttonClass="btn btn-default btn-sm">
+          <Menu label={t("File")} ariaLabel="File menu" buttonClass="btn btn-default btn-sm">
             {(close) => {
               const item = (run: () => unknown) => () => {
                 close();
@@ -429,15 +429,15 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
               };
               return (
                 <>
-                  <MenuItem onSelect={item(() => exportAs("html"))}>Download as web page (.html)</MenuItem>
-                  <MenuItem onSelect={item(() => exportAs("pdf"))}>Download as PDF</MenuItem>
-                  <MenuItem onSelect={item(() => exportAs("docx"))}>Download as Word (.docx)</MenuItem>
-                  <MenuItem onSelect={item(() => exportAs("txt"))}>Download as text (.txt)</MenuItem>
-                  <MenuItem onSelect={item(exportMarkdown)}>Download as Markdown (.md)</MenuItem>
-                  <MenuItem onSelect={item(() => openPrint(`${content}?format=html&inline=1`).catch((e: unknown) => toast(errorMessage(e), "error")))}>Print</MenuItem>
-                  <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>Version history</MenuItem>
-                  {space.data && info.parent && <MenuItem onSelect={item(copy)}>Make a copy</MenuItem>}
-                  {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>Save as a template</MenuItem>}
+                  <MenuItem onSelect={item(() => exportAs("html"))}>{t("Download as web page (.html)")}</MenuItem>
+                  <MenuItem onSelect={item(() => exportAs("pdf"))}>{t("Download as PDF")}</MenuItem>
+                  <MenuItem onSelect={item(() => exportAs("docx"))}>{t("Download as Word (.docx)")}</MenuItem>
+                  <MenuItem onSelect={item(() => exportAs("txt"))}>{t("Download as text (.txt)")}</MenuItem>
+                  <MenuItem onSelect={item(exportMarkdown)}>{t("Download as Markdown (.md)")}</MenuItem>
+                  <MenuItem onSelect={item(() => openPrint(`${content}?format=html&inline=1`).catch((e: unknown) => toast(errorMessage(e), "error")))}>{t("Print")}</MenuItem>
+                  <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>{t("Version history")}</MenuItem>
+                  {space.data && info.parent && <MenuItem onSelect={item(copy)}>{t("Make a copy")}</MenuItem>}
+                  {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>{t("Save as a template")}</MenuItem>}
                 </>
               );
             }}
@@ -452,7 +452,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       <div className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
         {editor && tocShown && <Contents editor={editor} onHide={() => showContents(false)} />}
         <div className="doc-paper">
-          {!state.loaded && !state.closed && <Spinner label="Loading the document" />}
+          {!state.loaded && !state.closed && <Spinner label={t("Loading the document")} />}
           <EditorContent editor={editor} hidden={!state.loaded} />
           {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
         </div>
@@ -529,7 +529,7 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
     if (!next || next === docTitle(name)) return setValue(docTitle(name));
     try {
       await rename(`${next}.fdoc`);
-      toast("Renamed");
+      toast(t("Renamed"));
     } catch (e) {
       toast(errorMessage(e), "error");
       setValue(docTitle(name));
@@ -539,7 +539,7 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
   return (
     <input
       className="doc-title"
-      aria-label="Document name"
+      aria-label={t("Document name")}
       value={value}
       maxLength={240}
       onChange={(e) => setValue(e.target.value)}
@@ -605,20 +605,20 @@ function Toolbar({
   const [describing, setDescribing] = useState(false);
   const run = () => editor.chain().focus();
   return (
-    <div className={`doc-toolbar${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label="Formatting">
+    <div className={`doc-toolbar${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
       <label className="sr-only" htmlFor="doc-mode">
-        Mode
+        {t("Mode")}
       </label>
       <select id="doc-mode" className="doc-style doc-mode" value={suggesting ? "suggest" : "edit"} onChange={(e) => setMode(e.target.value === "suggest")}>
-        <option value="edit">Editing</option>
-        <option value="suggest">Suggesting</option>
+        <option value="edit">{t("Editing")}</option>
+        <option value="suggest">{t("Suggesting")}</option>
       </select>
       <Sep />
-      <Tool label="Undo" icon={Undo2} disabled={!s.canUndo} onClick={() => run().undo().run()} />
-      <Tool label="Redo" icon={Redo2} disabled={!s.canRedo} onClick={() => run().redo().run()} />
+      <Tool label={t("Undo")} icon={Undo2} disabled={!s.canUndo} onClick={() => run().undo().run()} />
+      <Tool label={t("Redo")} icon={Redo2} disabled={!s.canRedo} onClick={() => run().redo().run()} />
       <Sep />
       <label className="sr-only" htmlFor="doc-style">
-        Paragraph style
+        {t("Paragraph style")}
       </label>
       <select
         id="doc-style"
@@ -637,28 +637,28 @@ function Toolbar({
         ))}
       </select>
       <Sep />
-      <Tool label="Bold" icon={Bold} active={s.bold} onClick={() => run().toggleBold().run()} />
-      <Tool label="Italic" icon={Italic} active={s.italic} onClick={() => run().toggleItalic().run()} />
-      <Tool label="Underline" icon={Underline} active={s.underline} onClick={() => run().toggleUnderline().run()} />
-      <Tool label="Strikethrough" icon={Strikethrough} active={s.strike} onClick={() => run().toggleStrike().run()} />
-      <Tool label="Highlight" icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
-      <Tool label="Code" icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
+      <Tool label={t("Bold")} icon={Bold} active={s.bold} onClick={() => run().toggleBold().run()} />
+      <Tool label={t("Italic")} icon={Italic} active={s.italic} onClick={() => run().toggleItalic().run()} />
+      <Tool label={t("Underline")} icon={Underline} active={s.underline} onClick={() => run().toggleUnderline().run()} />
+      <Tool label={t("Strikethrough")} icon={Strikethrough} active={s.strike} onClick={() => run().toggleStrike().run()} />
+      <Tool label={t("Highlight")} icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
+      <Tool label={t("Code")} icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
       <Tool label={s.link ? "Edit link" : "Link"} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
       <Tool label={adding ? "Adding the image…" : "Image"} icon={ImagePlus} disabled={adding} onClick={pickImages} />
       {s.image && (
         <button type="button" className="doc-tool doc-tool-text" onMouseDown={(e) => e.preventDefault()} onClick={() => setDescribing(true)}>
-          Describe image
+          {t("Describe image")}
         </button>
       )}
       <Sep />
-      <Tool label="Bulleted list" icon={List} active={s.bullet} onClick={() => run().toggleBulletList().run()} />
-      <Tool label="Numbered list" icon={ListOrdered} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
-      <Tool label="Checklist" icon={ListChecks} active={s.task} onClick={() => run().toggleTaskList().run()} />
-      <Tool label="Quote" icon={Quote} active={s.quote} onClick={() => run().toggleBlockquote().run()} />
+      <Tool label={t("Bulleted list")} icon={List} active={s.bullet} onClick={() => run().toggleBulletList().run()} />
+      <Tool label={t("Numbered list")} icon={ListOrdered} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
+      <Tool label={t("Checklist")} icon={ListChecks} active={s.task} onClick={() => run().toggleTaskList().run()} />
+      <Tool label={t("Quote")} icon={Quote} active={s.quote} onClick={() => run().toggleBlockquote().run()} />
       {s.quote && (
         <>
           <label className="sr-only" htmlFor="doc-callout">
-            Quote style
+            {t("Quote style")}
           </label>
           <select
             id="doc-callout"
@@ -670,7 +670,7 @@ function Toolbar({
               else run().unsetCallout().run();
             }}
           >
-            <option value="">Plain quote</option>
+            <option value="">{t("Plain quote")}</option>
             {CALLOUTS.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label} callout
@@ -679,14 +679,14 @@ function Toolbar({
           </select>
         </>
       )}
-      <Tool label="Code block" icon={SquareCode} active={s.codeBlock} onClick={() => run().toggleCodeBlock().run()} />
-      <Tool label="Divider" icon={Minus} onClick={() => run().setHorizontalRule().run()} />
+      <Tool label={t("Code block")} icon={SquareCode} active={s.codeBlock} onClick={() => run().toggleCodeBlock().run()} />
+      <Tool label={t("Divider")} icon={Minus} onClick={() => run().setHorizontalRule().run()} />
       <Sep />
-      <Tool label="Align left" icon={AlignLeft} active={s.left} onClick={() => run().setTextAlign("left").run()} />
-      <Tool label="Center" icon={AlignCenter} active={s.center} onClick={() => run().setTextAlign("center").run()} />
-      <Tool label="Align right" icon={AlignRight} active={s.right} onClick={() => run().setTextAlign("right").run()} />
+      <Tool label={t("Align left")} icon={AlignLeft} active={s.left} onClick={() => run().setTextAlign("left").run()} />
+      <Tool label={t("Center")} icon={AlignCenter} active={s.center} onClick={() => run().setTextAlign("center").run()} />
+      <Tool label={t("Align right")} icon={AlignRight} active={s.right} onClick={() => run().setTextAlign("right").run()} />
       <Sep />
-      <Menu label="Table" ariaLabel="Table" buttonClass="doc-tool doc-tool-text">
+      <Menu label={t("Table")} ariaLabel="Table" buttonClass="doc-tool doc-tool-text">
         {(close) => {
           const item = (go: () => boolean, label: string, needsTable = true) =>
             (!needsTable || s.table) && (
@@ -727,16 +727,16 @@ function DescribeDialog({ editor, onClose }: { editor: Editor; onClose: () => vo
   };
   const footer: ReactNode = (
     <>
-      <Button onClick={onClose}>Cancel</Button>
+      <Button onClick={onClose}>{t("Cancel")}</Button>
       <Button variant="primary" type="submit" form="doc-describe-form">
-        Save
+        {t("Save")}
       </Button>
     </>
   );
   return (
-    <Dialog open onClose={onClose} title="Describe the image" footer={footer}>
+    <Dialog open onClose={onClose} title={t("Describe the image")} footer={footer}>
       <form id="doc-describe-form" onSubmit={save}>
-        <Field label="Description" htmlFor="doc-describe-alt" hint="What it shows, in a sentence; leave empty for a decoration">
+        <Field label={t("Description")} htmlFor="doc-describe-alt" hint={t("What it shows, in a sentence; leave empty for a decoration")}>
           <input id="doc-describe-alt" className="input" value={alt} maxLength={300} onChange={(e) => setAlt(e.target.value)} data-autofocus />
         </Field>
       </form>
@@ -778,19 +778,19 @@ function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }
             onClose();
           }}
         >
-          Remove link
+          {t("Remove link")}
         </Button>
       )}
-      <Button onClick={onClose}>Cancel</Button>
+      <Button onClick={onClose}>{t("Cancel")}</Button>
       <Button variant="primary" type="submit" form="doc-link-form">
-        Save
+        {t("Save")}
       </Button>
     </>
   );
   return (
     <Dialog open onClose={onClose} title={current ? "Edit link" : "Add a link"} footer={footer}>
       <form id="doc-link-form" onSubmit={save}>
-        <Field label="Address" htmlFor="doc-link-href" error={error ?? undefined}>
+        <Field label={t("Address")} htmlFor="doc-link-href" error={error ?? undefined}>
           <input
             id="doc-link-href"
             className="input"
@@ -833,27 +833,27 @@ function TemplateDialog({ file, title, unsaved, onClose }: { file: string; title
   };
   const footer: ReactNode = (
     <>
-      <Button onClick={onClose}>Cancel</Button>
+      <Button onClick={onClose}>{t("Cancel")}</Button>
       <Button variant="primary" type="submit" form="doc-template-form" loading={busy} disabled={!name.trim()}>
-        Save template
+        {t("Save template")}
       </Button>
     </>
   );
   return (
-    <Dialog open onClose={onClose} title="Save as a template" footer={footer}>
+    <Dialog open onClose={onClose} title={t("Save as a template")} footer={footer}>
       <form id="doc-template-form" onSubmit={save} className="stack">
-        {unsaved && <Alert tone="warning">The last few changes are still being saved; the template takes what is saved when you press Save.</Alert>}
-        <Field label="Template name" htmlFor="doc-template-name" required>
+        {unsaved && <Alert tone="warning">{t("The last few changes are still being saved; the template takes what is saved when you press Save.")}</Alert>}
+        <Field label={t("Template name")} htmlFor="doc-template-name" required>
           <input id="doc-template-name" className="input" value={name} maxLength={140} onChange={(e) => setName(e.target.value)} data-autofocus />
         </Field>
-        <Field label="Category" htmlFor="doc-template-category">
+        <Field label={t("Category")} htmlFor="doc-template-category">
           <select id="doc-template-category" className="input" value={category} onChange={(e) => setCategory(e.target.value)}>
             {CATEGORIES.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
         </Field>
-        <Field label="Description" htmlFor="doc-template-description" hint="One line in the template gallery">
+        <Field label={t("Description")} htmlFor="doc-template-description" hint={t("One line in the template gallery")}>
           <input id="doc-template-description" className="input" value={description} maxLength={280} onChange={(e) => setDescription(e.target.value)} />
         </Field>
       </form>

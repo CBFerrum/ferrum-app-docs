@@ -6,7 +6,7 @@
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { api, errorMessage, formatDateTime } from "@ferrum/client";
+import { api, errorMessage, formatDateTime, t as tr } from "@ferrum/client";
 import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
@@ -138,7 +138,7 @@ export function CommentRail({
         </time>
         {(c.mine || canManage) && (
           <button type="button" className="doc-thread-link" onClick={() => void remove(c, thread)} aria-label={thread ? "Delete the thread" : "Delete the reply"}>
-            Delete
+            {tr("Delete")}
           </button>
         )}
       </div>
@@ -160,18 +160,18 @@ export function CommentRail({
 
   if (!draft && !all.length && !proposals.length) return null;
   return (
-    <aside className="doc-rail" aria-label="Comments and suggestions on the text">
+    <aside className="doc-rail" aria-label={tr("Comments and suggestions on the text")}>
       {proposals.length > 0 && (
-        <section className="doc-proposals" aria-label="Suggestions">
+        <section className="doc-proposals" aria-label={tr("Suggestions")}>
           <div className="doc-proposals-head">
-            <strong>Suggestions ({proposals.length})</strong>
+            <strong>{tr("Suggestions ({length})", { length: proposals.length })}</strong>
             {canEdit && proposals.length > 1 && (
               <span className="doc-thread-actions">
                 <Button size="sm" variant="ghost" onClick={() => decideAll(true)}>
-                  Accept all
+                  {tr("Accept all")}
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => decideAll(false)}>
-                  Reject all
+                  {tr("Reject all")}
                 </Button>
               </span>
             )}
@@ -182,15 +182,15 @@ export function CommentRail({
                 <button type="button" className="doc-proposal-what" onClick={() => showProposal(s)}>
                   {s.deleted && s.inserted ? (
                     <>
-                      Replace <del className="doc-del">{s.deleted}</del> with <ins className="doc-ins">{s.inserted}</ins>
+                      {tr("Replace")} <del className="doc-del">{s.deleted}</del> with <ins className="doc-ins">{s.inserted}</ins>
                     </>
                   ) : s.inserted ? (
                     <>
-                      Add <ins className="doc-ins">{s.inserted}</ins>
+                      {tr("Add")} <ins className="doc-ins">{s.inserted}</ins>
                     </>
                   ) : (
                     <>
-                      Remove <del className="doc-del">{s.deleted}</del>
+                      {tr("Remove")} <del className="doc-del">{s.deleted}</del>
                     </>
                   )}
                 </button>
@@ -205,10 +205,10 @@ export function CommentRail({
                 {canEdit && (
                   <div className="doc-thread-actions">
                     <Button size="sm" variant="ghost" onClick={() => decide(s, false)}>
-                      Reject
+                      {tr("Reject")}
                     </Button>
                     <Button size="sm" onClick={() => decide(s, true)}>
-                      Accept
+                      {tr("Accept")}
                     </Button>
                   </div>
                 )}
@@ -218,11 +218,11 @@ export function CommentRail({
         </section>
       )}
       {draft && (
-        <section className="doc-thread is-active" aria-label="New comment">
+        <section className="doc-thread is-active" aria-label={tr("New comment")}>
           <blockquote className="doc-thread-quote">{draft.quote}</blockquote>
           <Composer people={people} onPost={start} />
           <Button size="sm" variant="ghost" onClick={onDraftDone}>
-            Cancel
+            {tr("Cancel")}
           </Button>
         </section>
       )}
@@ -234,19 +234,19 @@ export function CommentRail({
               <button type="button" className="doc-thread-quote" onClick={() => show(t)} aria-label={`Show the text: ${t.root.quote ?? ""}`}>
                 {t.root.quote}
               </button>
-              {!here && <p className="faint">The text it was on has been removed.</p>}
+              {!here && <p className="faint">{tr("The text it was on has been removed.")}</p>}
               {one(t.root, true)}
               {t.replies.map((r) => one(r, false))}
               {canComment && active === t.root.id && <Composer people={people} onPost={reply(t)} />}
               <div className="doc-thread-actions">
                 {canComment && active !== t.root.id && (
                   <Button size="sm" variant="ghost" onClick={() => show(t)}>
-                    Reply
+                    {tr("Reply")}
                   </Button>
                 )}
                 {canComment && (
                   <Button size="sm" onClick={() => void resolve(t, true)}>
-                    Resolve
+                    {tr("Resolve")}
                   </Button>
                 )}
               </div>
@@ -256,17 +256,17 @@ export function CommentRail({
       </ul>
       {resolved.length > 0 && (
         <details className="doc-resolved" open={showResolved} onToggle={(e) => setShowResolved(e.currentTarget.open)}>
-          <summary>Resolved ({resolved.length})</summary>
+          <summary>{tr("Resolved ({length})", { length: resolved.length })}</summary>
           <ul className="doc-threads">
             {resolved.map((t) => (
               <li key={t.root.id} className="doc-thread is-resolved">
                 <blockquote className="doc-thread-quote">{t.root.quote}</blockquote>
                 {one(t.root, true)}
                 {t.replies.map((r) => one(r, false))}
-                <p className="faint">Resolved by {name(t.root.resolved_by)}</p>
+                <p className="faint">{tr("Resolved by")} {name(t.root.resolved_by)}</p>
                 {canComment && (
                   <Button size="sm" variant="ghost" onClick={() => void resolve(t, false)}>
-                    Reopen
+                    {tr("Reopen")}
                   </Button>
                 )}
               </li>

@@ -5,6 +5,7 @@ import { type Editor, useEditorState } from "@tiptap/react";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type Heading, depthOf, headingInView, headingsOf, sameHeadings } from "./outline";
+import { t } from "@ferrum/client";
 
 /** Headings count as reached when they are this far (px) from the top of the screen: below the
  *  bar and the toolbar. */
@@ -53,10 +54,10 @@ export function Contents({ editor, onHide }: { editor: Editor; onHide: () => voi
   };
 
   return (
-    <nav className="doc-toc" aria-label="Contents">
+    <nav className="doc-toc" aria-label={t("Contents")}>
       <div className="doc-toc-head">
-        <strong>Contents</strong>
-        <button type="button" className="doc-tool" aria-label="Hide the contents" title="Hide the contents" onClick={onHide}>
+        <strong>{t("Contents")}</strong>
+        <button type="button" className="doc-tool" aria-label={t("Hide the contents")} title={t("Hide the contents")} onClick={onHide}>
           <X size={16} aria-hidden />
         </button>
       </div>
@@ -71,7 +72,7 @@ export function Contents({ editor, onHide }: { editor: Editor; onHide: () => voi
           ))}
         </ol>
       ) : (
-        <p className="doc-toc-empty">Headings you add to the text appear here, to jump to.</p>
+        <p className="doc-toc-empty">{t("Headings you add to the text appear here, to jump to.")}</p>
       )}
     </nav>
   );
