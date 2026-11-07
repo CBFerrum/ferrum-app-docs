@@ -1,6 +1,6 @@
 id: docs
 name: Docs
-version: 0.7.9
+version: 0.7.10
 publisher: cbferrum
 summary: "Documents people write together: a home for them, templates, search by what they say, and AI agents that draft and add to them"
 description: README.md
@@ -30,3 +30,14 @@ contributes:
       roles: [Docs User, Docs Manager]
   shell.create:
     - {id: document, label: Document, path: docs/new}
+  # What the assistant should know in Docs's pages, and what it suggests asking there.
+  shell.assistant:
+    - id: docs
+      title: "Docs"
+      instructions: >-
+        A document in Docs is a file in Drive that people edit together live; a DocsTemplate is one to start from.
+        Search finds documents by what they say. Quote only what the tools return of a document.
+      suggestions:
+        - "Find the documents about our onboarding"
+        - "Summarize this document"
+        - "Which templates do we have?"
