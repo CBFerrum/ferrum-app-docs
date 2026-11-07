@@ -8,7 +8,7 @@ import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, toast } from "@ferrum/kit";
 import { findKey, replaceAll, replaceOne, setFind } from "./find";
 import { Sep, Tool } from "./Tool";
-import { t } from "@ferrum/client";
+import { t, isolate } from "@ferrum/client";
 
 /** The words selected in one paragraph, to search for when the bar opens. */
 function selectedWords(editor: Editor): string {
@@ -85,7 +85,7 @@ export function FindBar({
     const tr = replaceAll(editor.state, withText);
     if (!tr) return;
     editor.view.dispatch(tr);
-    toast(`Replaced ${tr.steps.length} ${tr.steps.length === 1 ? "match" : "matches"}`);
+    toast(t("Replaced {length} {value}", { length: tr.steps.length, value: tr.steps.length === 1 ? "match" : "matches" }));
   };
   const onFindKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
@@ -96,7 +96,7 @@ export function FindBar({
       close();
     }
   };
-  const status = !f.query ? "" : f.count === 0 ? "No matches" : `${f.current + 1} of ${f.count}${f.more ? "+" : ""}`;
+  const status = !f.query ? "" : f.count === 0 ? t("No matches") : t("{value} of {count}{value2}", { value: f.current + 1, count: f.count, value2: f.more ? "+" : "" });
 
   return (
     <div className="doc-find" role="search" aria-label={t("Find in the document")}>
@@ -106,7 +106,7 @@ export function FindBar({
         </label>
         <input id={`${id}-find`} ref={input} className="input doc-find-input" type="search" placeholder={t("Find in the document")} autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={onFindKey} />
         <span className="doc-find-count" role="status" aria-live="polite">
-          {status}
+          {isolate(status)}
         </span>
         <Tool label={t("Previous match (Shift+Enter)")} icon={ChevronUp} disabled={!f.count} onClick={() => go(-1)} />
         <Tool label={t("Next match (Enter)")} icon={ChevronDown} disabled={!f.count} onClick={() => go(1)} />
@@ -114,7 +114,7 @@ export function FindBar({
         {canReplace && (
           <>
             <Sep />
-            <Tool label={replacing ? "Hide replace" : "Replace…"} icon={Replace} active={replacing} onClick={() => setReplacing(!replacing)} />
+            <Tool label={replacing ? t("Hide replace") : t("Replace…")} icon={Replace} active={replacing} onClick={() => setReplacing(!replacing)} />
           </>
         )}
         <Tool label={t("Close find")} icon={X} onClick={close} />

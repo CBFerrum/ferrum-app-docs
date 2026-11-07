@@ -17,7 +17,7 @@ import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import * as Y from "yjs";
-import { api, download, errorMessage, fetchBlob, formatDateTime, relativeTime, t } from "@ferrum/client";
+import { api, download, errorMessage, fetchBlob, formatDateTime, relativeTime, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, EmptyState, ErrorState, Menu, MenuItem, Spinner, toast, useShellTitle } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Range, compare } from "./compare";
@@ -112,7 +112,7 @@ export function HistoryPage() {
     staleTime: 0,
   });
   const title = info.data ? docTitle(info.data.name) : "";
-  useShellTitle(title ? `Version history: ${title}` : "Version history");
+  useShellTitle(title ? t("Version history: {title}", { title }) : t("Version history"));
 
   const versions = list.data ?? [];
   const version = chosen(versions, params.get("v"));
@@ -157,7 +157,7 @@ export function HistoryPage() {
     try {
       const made = await api.post<{ id: string; name: string }>(`/api/v1/DriveSpace/${space.data.id}/actions/restore_version`, { file, version: version.version });
       void qc.invalidateQueries({ queryKey: ["drive"] });
-      toast(`Made “${docTitle(made.name)}” from version ${version.version}`);
+      toast(t("Made “{value}” from version {version}", { value: docTitle(made.name), version: version.version }));
       navigate(`/d/${made.id}`, { state: { from: "docs" } });
     } catch (e) {
       toast(errorMessage(e), "error");
@@ -165,7 +165,7 @@ export function HistoryPage() {
   };
   const when = (v: Version) => (
     <time dateTime={v.created_at} title={formatDateTime(v.created_at)}>
-      {relativeTime(v.created_at)}
+      {isolate(relativeTime(v.created_at))}
     </time>
   );
   const pageLabel = (w: Which | undefined) => {
@@ -202,15 +202,15 @@ export function HistoryPage() {
                     {t("Version {version}", { version: v.version })} {v.current && <Badge tone="blue">{t("Latest saved")}</Badge>}
                   </span>
                   <span className="doc-version-meta">
-                    {when(v)} · {name(v.author)}
+                    {when(v)} · {isolate(name(v.author))}
                   </span>
-                  <span className="doc-version-meta">{[v.comment, fileSize(v.size)].filter(Boolean).join(" · ")}</span>
+                  <span className="doc-version-meta">{isolate([v.comment, fileSize(v.size)].filter(Boolean).join(" · "))}</span>
                 </button>
               </li>
             ))}
           </ul>
         </nav>
-        <section className="doc-compare" aria-label={`${sideName(pair.older)} compared with ${sideName(pair.newer)}`}>
+        <section className="doc-compare" aria-label={t("{value} compared with {value2}", { value: sideName(pair.older), value2: sideName(pair.newer) })}>
           <div className="doc-compare-bar">
             <label className="doc-compare-with">
               <span>{t("Compare version {version} with", { version: version.version })}</span>
@@ -228,7 +228,7 @@ export function HistoryPage() {
             </label>
             <div className="doc-compare-steps">
               <span role="status" aria-live="polite" className="doc-compare-count">
-                {diff ? (diff.changes.length ? `Change ${Math.min(step, diff.changes.length - 1) + 1} of ${diff.changes.length}` : "No changes") : ""}
+                {diff ? (diff.changes.length ? t("Change {value} of {length}", { value: Math.min(step, diff.changes.length - 1) + 1, length: diff.changes.length }) : t("No changes")) : ""}
               </span>
               <Button size="sm" aria-label={t("Previous change")} disabled={!diff || diff.changes.length < 2} onClick={() => setStep((s) => (s - 1 + diff!.changes.length) % diff!.changes.length)}>
                 <ChevronUp size={16} aria-hidden />
@@ -256,28 +256,28 @@ export function HistoryPage() {
                           void save(format);
                         }}
                       >
-                        {label}
+                        {isolate(label)}
                       </MenuItem>
                     ))}
                   </>
                 )}
               </Menu>
-              <Button size="sm" variant="primary" disabled={!canRestore} title={canRestore ? "Makes a new document from this version; the document keeps its text" : "Restoring needs permission to edit the document"} onClick={() => void restore()}>
+              <Button size="sm" variant="primary" disabled={!canRestore} title={canRestore ? t("Makes a new document from this version; the document keeps its text") : t("Restoring needs permission to edit the document")} onClick={() => void restore()}>
                 {t("Restore as a copy")}
               </Button>
             </div>
           </div>
           <p className="doc-compare-summary">{diff ? summary(diff.wordsAdded, diff.wordsRemoved) : " "}</p>
           {failed ? (
-            <Alert tone="error">{t("This version could not be opened:")} {errorMessage(failed)}</Alert>
+            <Alert tone="error">{t("This version could not be opened:")} {isolate(errorMessage(failed))}</Alert>
           ) : (
             <>
               <div className="doc-pane-tabs" role="group" aria-label={t("Which page to show")}>
                 <button type="button" className="btn btn-default btn-sm" aria-pressed={narrow === "older"} onClick={() => setNarrow("older")}>
-                  {sideName(pair.older)}
+                  {isolate(sideName(pair.older))}
                 </button>
                 <button type="button" className="btn btn-default btn-sm" aria-pressed={narrow === "newer"} onClick={() => setNarrow("newer")}>
-                  {sideName(pair.newer)}
+                  {isolate(sideName(pair.newer))}
                 </button>
               </div>
               <div className="doc-compare-panes" data-pane={narrow}>
@@ -289,15 +289,15 @@ export function HistoryPage() {
                 ).map(([side, w, text, kind, at]) => (
                   <div key={side} className={`doc-compare-pane doc-compare-${side}`}>
                     <h2 className="doc-compare-head">
-                      {sideName(w)}
+                      {isolate(sideName(w))}
                       {typeof w === "number" && (
                         <span className="faint">
-                          {" "}
-                          · {when(versions.find((v) => v.version === w)!)} · {name(versions.find((v) => v.version === w)!.author)}
+                          {isolate(" ")}
+                          · {when(versions.find((v) => v.version === w)!)} · {isolate(name(versions.find((v) => v.version === w)!.author))}
                         </span>
                       )}
                     </h2>
-                    {text.doc ? <Page doc={text.doc} marks={(kind === "removed" ? diff?.removed : diff?.added) ?? NONE} kind={kind} at={at ?? null} label={pageLabel(w)} /> : <Spinner label={`Loading ${sideName(w).toLowerCase()}`} />}
+                    {text.doc ? <Page doc={text.doc} marks={(kind === "removed" ? diff?.removed : diff?.added) ?? NONE} kind={kind} at={at ?? null} label={pageLabel(w)} /> : <Spinner label={t("Loading {value}", { value: sideName(w).toLowerCase() })} />}
                   </div>
                 ))}
               </div>
@@ -313,7 +313,7 @@ export function HistoryPage() {
       <header className="doc-bar">
         {back}
         <h1 className="doc-history-title">
-          {t("Version history")}{title && <span className="faint"> · {title}</span>}
+          {t("Version history")}{title && <span className="faint"> · {isolate(title)}</span>}
         </h1>
       </header>
       {body}

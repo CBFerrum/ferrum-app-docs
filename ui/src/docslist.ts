@@ -3,6 +3,7 @@
 // a browser.
 
 import { LIVE_DOC_TYPE } from "./livedocs";
+import { t } from "@ferrum/client";
 
 /** A Drive item as the lists give it. */
 export interface DocItem {
@@ -26,32 +27,32 @@ export const isFolder = (i: DocItem) => i.kind === "folder";
 export const isDocument = (i: DocItem) => i.kind !== "folder" && i.content_type === LIVE_DOC_TYPE;
 
 export const VIEWS = [
-  { id: "recent", label: "Recent" },
-  { id: "shared", label: "Shared with me" },
-  { id: "starred", label: "Starred" },
-  { id: "all", label: "All documents" },
+  { id: "recent", get label() { return t("Recent"); } },
+  { id: "shared", get label() { return t("Shared with me"); } },
+  { id: "starred", get label() { return t("Starred"); } },
+  { id: "all", get label() { return t("All documents"); } },
 ] as const;
 export type View = (typeof VIEWS)[number]["id"];
 
 export const OWNERS = [
-  { id: "any", label: "Anyone" },
-  { id: "me", label: "Me" },
-  { id: "others", label: "Others" },
+  { id: "any", get label() { return t("Anyone"); } },
+  { id: "me", get label() { return t("Me"); } },
+  { id: "others", get label() { return t("Others"); } },
 ] as const;
 export type Owner = (typeof OWNERS)[number]["id"];
 
 export const CHANGES = [
-  { id: "any", label: "Any time" },
-  { id: "today", label: "Today" },
-  { id: "7", label: "Past 7 days" },
-  { id: "30", label: "Past 30 days" },
+  { id: "any", get label() { return t("Any time"); } },
+  { id: "today", get label() { return t("Today"); } },
+  { id: "7", get label() { return t("Past 7 days"); } },
+  { id: "30", get label() { return t("Past 30 days"); } },
 ] as const;
 export type Changed = (typeof CHANGES)[number]["id"];
 
 export const SORTS = [
-  { id: "default", label: "Default order" },
-  { id: "changed", label: "Last changed" },
-  { id: "name", label: "Name" },
+  { id: "default", get label() { return t("Default order"); } },
+  { id: "changed", get label() { return t("Last changed"); } },
+  { id: "name", get label() { return t("Name"); } },
 ] as const;
 export type Sort = (typeof SORTS)[number]["id"];
 

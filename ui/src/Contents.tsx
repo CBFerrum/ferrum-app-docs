@@ -5,7 +5,7 @@ import { type Editor, useEditorState } from "@tiptap/react";
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type Heading, depthOf, headingInView, headingsOf, sameHeadings } from "./outline";
-import { t } from "@ferrum/client";
+import { t, isolate } from "@ferrum/client";
 
 /** Headings count as reached when they are this far (px) from the top of the screen: below the
  *  bar and the toolbar. */
@@ -66,7 +66,7 @@ export function Contents({ editor, onHide }: { editor: Editor; onHide: () => voi
           {headings.map((h, i) => (
             <li key={h.pos} style={{ paddingInlineStart: `${depthOf(headings, h) * 14}px` }}>
               <button type="button" className="doc-toc-item" aria-current={i === at ? "location" : undefined} title={h.text} onClick={() => go(h, i)}>
-                {h.text}
+                {isolate(h.text)}
               </button>
             </li>
           ))}

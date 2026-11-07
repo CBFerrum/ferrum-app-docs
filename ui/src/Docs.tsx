@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Folder, MoreHorizontal, Star, Upload } from "lucide-react";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { api, errorMessage, formatDateTime, relativeTime, shell, t as tr } from "@ferrum/client";
+import { api, errorMessage, formatDateTime, relativeTime, shell, t as tr, isolate } from "@ferrum/client";
 import { Badge, EmptyState, ErrorState, FamilyNav, Icon, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { can, useMe, useMetaIndex, usePeople } from "@ferrum/records";
 import { CHANGES, type DocItem, OWNERS, SORTS, VIEWS, carriesFiles, changedFrom, isDocument, isFolder, narrow, ordered, ownerName, pick } from "./docslist";
@@ -33,7 +33,7 @@ interface Listing {
 }
 
 export function DocsPage() {
-  useShellTitle("Docs");
+  useShellTitle(tr("Docs"));
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -165,7 +165,7 @@ export function DocsPage() {
           made.push(await act("create_document", { title: doc.title, markdown: doc.markdown, ...(folderId ? { folder: folderId } : {}) }));
           for (const note of doc.notes) toast(`“${f.name}”: ${note}`, "info");
         } catch (e) {
-          toast(`“${f.name}” was not imported. ${errorMessage(e)}`, "error");
+          toast(tr("“{name}” was not imported. {e}", { name: f.name, e: errorMessage(e) }), "error");
         }
       }
     } catch (e) {
@@ -174,7 +174,7 @@ export function DocsPage() {
     setBusy(null);
     if (made.length === 1) open(made[0]!);
     else if (made.length) {
-      toast(`Imported ${made.length} documents`);
+      toast(tr("Imported {length} documents", { length: made.length }));
       void qc.invalidateQueries({ queryKey: ["docs", "list"] });
     }
   };
@@ -199,7 +199,7 @@ export function DocsPage() {
     }
   };
   const trash = async (d: DocItem) => {
-    const ok = await confirmDialog({ title: `Move “${docTitle(d.name)}” to the trash?`, message: "It leaves your lists. Drive keeps it in the trash for a while, where it can be restored.", confirmLabel: "Move to the trash", danger: true });
+    const ok = await confirmDialog({ title: tr("Move “{value}” to the trash?", { value: docTitle(d.name) }), message: tr("It leaves your lists. Drive keeps it in the trash for a while, where it can be restored."), confirmLabel: tr("Move to the trash"), danger: true });
     if (!ok) return;
     patch((items) => items.filter((i) => i.id !== d.id));
     try {
@@ -213,7 +213,7 @@ export function DocsPage() {
 
   const clear = () => set({ q: null, owner: null, changed: null, sort: null }, true);
   const where = inFolder ? `in “${inFolder.name}”` : "";
-  const heading = query ? `Documents matching “${query}”` : folderId ? (inFolder ? inFolder.name : "Folder") : VIEWS.find((v) => v.id === view)!.label;
+  const heading = query ? tr("Documents matching “{query}”", { query }) : folderId ? (inFolder ? inFolder.name : tr("Folder")) : VIEWS.find((v) => v.id === view)!.label;
   // The folder a rail entry opens, and whether the page is inside it.
   const top = listing?.crumbs?.[0]?.id ?? folderId;
   /** The address of another list or folder: the choices stay, the search goes. */
@@ -230,7 +230,7 @@ export function DocsPage() {
     <li key={label + (change.folder ?? change.view ?? "")}>
       <Link to={to(change)} className="docs-rail-item" aria-current={active ? "page" : undefined}>
         {icon === "folder" ? <Folder size={16} aria-hidden /> : <FileText size={16} aria-hidden />}
-        <span>{label}</span>
+        <span>{isolate(label)}</span>
       </Link>
     </li>
   );
@@ -239,16 +239,16 @@ export function DocsPage() {
     set({ q: typed.trim() || null }, true);
   };
   const emptyTitle = query
-    ? `No document matches “${query}”`
+    ? tr("No document matches “{query}”", { query })
     : filtered
-      ? "No document matches these choices"
+      ? tr("No document matches these choices")
       : folderId
-        ? "No documents in this folder"
+        ? tr("No documents in this folder")
         : view === "shared"
-          ? "Nothing shared with you yet"
+          ? tr("Nothing shared with you yet")
           : view === "starred"
-            ? "No starred documents"
-            : "No documents yet";
+            ? tr("No starred documents")
+            : tr("No documents yet");
 
   return (
     <div
@@ -282,7 +282,7 @@ export function DocsPage() {
 
       <section aria-labelledby={`${id}-start`}>
         <h2 id={`${id}-start`} className="docs-heading">
-          {tr("Start a document")}{where && <span className="faint"> {where}</span>}
+          {tr("Start a document")}{where && <span className="faint"> {isolate(where)}</span>}
         </h2>
         {!mayCreate && <p className="muted">{tr("You can only read this folder. Open one of yours to start a document.")}</p>}
         <div className="docs-gallery">
@@ -290,13 +290,13 @@ export function DocsPage() {
             <span className="docs-template-sheet" aria-hidden>
               <Icon name="plus" size={20} />
             </span>
-            <span className="docs-template-name">{busy === "blank" ? "Opening…" : "Blank document"}</span>
+            <span className="docs-template-name">{busy === "blank" ? tr("Opening…") : tr("Blank document")}</span>
           </button>
           <button type="button" className="docs-template docs-template-blank" disabled={!!busy || !mayCreate} onClick={() => chooser.current?.click()} aria-label={tr("Import a Word or Markdown file as a new document")}>
             <span className="docs-template-sheet" aria-hidden>
               <Upload size={20} />
             </span>
-            <span className="docs-template-name">{busy === "import" ? "Importing…" : "Import a file"}</span>
+            <span className="docs-template-name">{busy === "import" ? tr("Importing…") : tr("Import a file")}</span>
             <span className="faint docs-template-category">{tr("Word or Markdown")}</span>
           </button>
           {templates.data?.map((t) => (
@@ -307,19 +307,19 @@ export function DocsPage() {
               disabled={!!busy || !mayCreate}
               title={t.description ?? undefined}
               onClick={() => void create(t)}
-              aria-label={`New document from the template ${t.name}${t.description ? `: ${t.description}` : ""}`}
+              aria-label={tr("New document from the template {name}{value}", { name: t.name, value: t.description ? `: ${t.description}` : "" })}
             >
               <span className="docs-template-sheet" aria-hidden>
                 <span />
                 <span />
                 <span />
               </span>
-              <span className="docs-template-name">{busy === t.id ? "Opening…" : t.name}</span>
-              {t.category && <span className="faint docs-template-category">{t.category}</span>}
+              <span className="docs-template-name">{busy === t.id ? tr("Opening…") : t.name}</span>
+              {t.category && <span className="faint docs-template-category">{isolate(t.category)}</span>}
             </button>
           ))}
         </div>
-        {templates.error && <p className="muted">{tr("Templates are not available:")} {errorMessage(templates.error)}</p>}
+        {templates.error && <p className="muted">{tr("Templates are not available:")} {isolate(errorMessage(templates.error))}</p>}
         <input
           ref={chooser}
           type="file"
@@ -348,7 +348,7 @@ export function DocsPage() {
 
         <section className="docs-list-section" aria-labelledby={`${id}-list`}>
           <h2 id={`${id}-list`} className="docs-heading">
-            {heading}
+            {isolate(heading)}
           </h2>
           {inFolder && listing?.crumbs && (
             <nav aria-label={tr("Folder path")}>
@@ -356,10 +356,10 @@ export function DocsPage() {
                 {listing.crumbs.map((c, i) => (
                   <li key={c.id}>
                     {i === listing.crumbs!.length - 1 ? (
-                      <span aria-current="page">{c.name}</span>
+                      <span aria-current="page">{isolate(c.name)}</span>
                     ) : (
                       <Link className="docs-crumb" to={to({ folder: c.id })}>
-                        {c.name}
+                        {isolate(c.name)}
                       </Link>
                     )}
                   </li>
@@ -372,7 +372,7 @@ export function DocsPage() {
               <label htmlFor={`${id}-q`} className="sr-only">
                 {tr("Search documents")}
               </label>
-              <input id={`${id}-q`} className="input" type="search" placeholder={folderId ? "Search this folder by title or words inside" : "Search by title or words inside"} value={typed} onChange={(e) => setTyped(e.target.value)} />
+              <input id={`${id}-q`} className="input" type="search" placeholder={folderId ? tr("Search this folder by title or words inside") : tr("Search by title or words inside")} value={typed} onChange={(e) => setTyped(e.target.value)} />
             </form>
             <div className="docs-chips" role="group" aria-label={tr("Narrow the list")}>
               <label className="docs-chip">
@@ -380,7 +380,7 @@ export function DocsPage() {
                 <select value={owner} onChange={(e) => set({ owner: e.target.value === "any" ? null : e.target.value }, true)}>
                   {OWNERS.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.label}
+                      {isolate(o.label)}
                     </option>
                   ))}
                 </select>
@@ -390,7 +390,7 @@ export function DocsPage() {
                 <select value={changed} onChange={(e) => set({ changed: e.target.value === "any" ? null : e.target.value }, true)}>
                   {CHANGES.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.label}
+                      {isolate(o.label)}
                     </option>
                   ))}
                 </select>
@@ -400,7 +400,7 @@ export function DocsPage() {
                 <select value={sort} onChange={(e) => set({ sort: e.target.value === "default" ? null : e.target.value }, true)}>
                   {SORTS.map((o) => (
                     <option key={o.id} value={o.id}>
-                      {o.label}
+                      {isolate(o.label)}
                     </option>
                   ))}
                 </select>
@@ -437,39 +437,39 @@ export function DocsPage() {
                       <div className="docs-row-main">
                         {folder ? (
                           <Link to={to({ folder: d.id })} className="docs-title">
-                            {title}
+                            {isolate(title)}
                           </Link>
                         ) : (
                           <Link to={`/d/${d.id}`} state={{ from: "docs" }} className="docs-title">
-                            {title}
+                            {isolate(title)}
                           </Link>
                         )}
                         {d.is_team && <Badge>{tr("Team folder")}</Badge>}
                         {here.length > 0 && (
                           <Badge tone="green" title={presenceLabel(here)}>
-                            {presenceLabel(here)}
+                            {isolate(presenceLabel(here))}
                           </Badge>
                         )}
                         {!folder && (d.permission === "View" || d.permission === "Comment") ? <Badge>{tr("View only")}</Badge> : null}
                       </div>
                       {d.snippet && (
                         <p className="docs-snippet">
-                          {snippetParts(d.snippet).map((p, i) => (p.hit ? <mark key={i}>{p.text}</mark> : <span key={i}>{p.text}</span>))}
+                          {snippetParts(d.snippet).map((p, i) => (p.hit ? <mark key={i}>{isolate(p.text)}</mark> : <span key={i}>{isolate(p.text)}</span>))}
                         </p>
                       )}
                       <div className="faint docs-meta">
-                        {folder ? "Folder" : `${d.shared_by ? "Shared by " : ""}${who}${who ? " · " : ""}`}
+                        {folder ? tr("Folder") : `${d.shared_by ? "Shared by " : ""}${who}${who ? " · " : ""}`}
                         {!folder && (
                           <time dateTime={d.modified_at} title={formatDateTime(d.modified_at)}>
-                            {tr("Changed")} {relativeTime(d.modified_at)}
+                            {tr("Changed")} {isolate(relativeTime(d.modified_at))}
                           </time>
                         )}
-                        {!folder && d.modified_by ? ` by ${ownerName(d.modified_by, me, people)}` : ""}
+                        {!folder && d.modified_by ? tr(" by {value}", { value: ownerName(d.modified_by, me, people) }) : ""}
                         {d.path && query ? ` · ${d.path}` : ""}
                       </div>
                       {!folder && (
                         <div className="docs-row-actions">
-                          <button type="button" className="docs-icon-btn" aria-pressed={!!d.starred} aria-label={d.starred ? `Remove the star from ${title}` : `Star ${title}`} title={d.starred ? "Starred" : "Star"} onClick={() => void star(d)}>
+                          <button type="button" className="docs-icon-btn" aria-pressed={!!d.starred} aria-label={d.starred ? tr("Remove the star from {title}", { title }) : tr("Star {title}", { title })} title={d.starred ? tr("Starred") : tr("Star")} onClick={() => void star(d)}>
                             <Star size={16} aria-hidden fill={d.starred ? "currentColor" : "none"} />
                           </button>
                           <Menu ariaLabel={`Actions for ${title}`} label={<MoreHorizontal size={16} aria-hidden />} buttonClass="docs-icon-btn">
