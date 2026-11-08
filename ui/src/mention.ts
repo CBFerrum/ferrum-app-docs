@@ -181,7 +181,7 @@ export function planNotices(doc: PMNode, pending: ReadonlyMap<string, Pending>):
 }
 
 /** What the comment that tells someone says (their bell and mail show its first words). */
-export const noticeBody = (context: string) => (context ? t("Mentioned in the text: “{context}”", { context }) : "Mentioned in the text.");
+export const noticeBody = (context: string) => (context ? t("Mentioned in the text: “{context}”", { context }) : t("Mentioned in the text."));
 
 /** The people whose name or address matches `query`, best first: a name starting with it, a word of
  *  the name or the address starting with it, then anywhere. */

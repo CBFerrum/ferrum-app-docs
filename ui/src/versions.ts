@@ -47,7 +47,7 @@ export function sides(versions: Version[], v: number, against: Against): { older
 }
 
 /** What a side is called above its page. */
-export const sideName = (w: Which) => (w === "current" ? "The text now" : w === "start" ? "Nothing yet" : t("Version {w}", { w }));
+export const sideName = (w: Which) => (w === "current" ? t("The text now") : w === "start" ? t("Nothing yet") : t("Version {w}", { w }));
 
 /** A size in plain units. */
 export function fileSize(bytes: number): string {
@@ -59,6 +59,6 @@ export function fileSize(bytes: number): string {
 /** The change in words, as a sentence: "12 words added, 3 removed". */
 export function summary(added: number, removed: number): string {
   const n = (c: number) => `${c} ${c === 1 ? "word" : "words"}`;
-  if (!added && !removed) return "No changes in the words";
+  if (!added && !removed) return t("No changes in the words");
   return [added ? t("{added} added", { added: n(added) }) : "", removed ? (added ? t("{removed} removed", { removed }) : t("{removed} removed", { removed: n(removed) })) : ""].filter(Boolean).join(", ");
 }

@@ -129,7 +129,7 @@ export function HistoryPage() {
     try {
       return { doc: asDoc(schema, q.data), loading: false };
     } catch {
-      return { error: new Error("It uses something this page cannot show."), loading: false };
+      return { error: new Error(t("It uses something this page cannot show.")), loading: false };
     }
   };
   const older = useMemo(() => read(pair?.older, olderText), [pair?.older, olderText.data, olderText.error, schema]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -140,7 +140,7 @@ export function HistoryPage() {
   const comparing = `${file}|${pair?.older}|${pair?.newer}`;
   useEffect(() => setStep(0), [comparing]);
 
-  const name = (email: string | null) => people.find((p) => p.email.toLowerCase() === email?.toLowerCase())?.full_name || email || "Someone";
+  const name = (email: string | null) => people.find((p) => p.email.toLowerCase() === email?.toLowerCase())?.full_name || email || t("Someone");
   const choose = (n: number) => setParams({ v: String(n), ...(against === "previous" ? {} : { with: String(against) }) }, { replace: true });
   const compareWith = (value: string) => setParams({ v: String(version?.version), ...(value === "previous" ? {} : { with: value }) }, { replace: true });
   const content = `/api/app/drive/files/${encodeURIComponent(file)}/content`;
@@ -243,10 +243,10 @@ export function HistoryPage() {
                   <>
                     {(
                       [
-                        ["docx", "Word (.docx)"],
+                        ["docx", t("Word (.docx)")],
                         ["pdf", "PDF"],
-                        ["html", "Web page (.html)"],
-                        ["txt", "Text (.txt)"],
+                        ["html", t("Web page (.html)")],
+                        ["txt", t("Text (.txt)")],
                       ] as const
                     ).map(([format, label]) => (
                       <MenuItem

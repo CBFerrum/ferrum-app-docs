@@ -341,7 +341,7 @@ export function DocsPage() {
           </ul>
           <h2 className="docs-rail-title">{tr("Folders")}</h2>
           <ul>
-            {space.data && railLink("My documents", { folder: space.data.root_folder, view: null }, !!top && top === space.data.root_folder, "folder")}
+            {space.data && railLink(tr("My documents"), { folder: space.data.root_folder, view: null }, !!top && top === space.data.root_folder, "folder")}
             {teams.data?.map((t) => railLink(t.name, { folder: t.id, view: null }, top === t.id, "folder"))}
           </ul>
         </nav>

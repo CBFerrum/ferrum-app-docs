@@ -21,7 +21,7 @@ export interface Made {
 /** The document's name from the file's: without the extension, at most 120 characters. */
 export function titleOf(fileName: string): string {
   const stem = fileName.replace(/\.[A-Za-z0-9]{1,8}$/, "").replace(/[\\/]+/g, " ").replace(/\s+/g, " ").trim();
-  return (stem || "Imported document").slice(0, 120).trim();
+  return (stem || t("Imported document")).slice(0, 120).trim();
 }
 
 /** A Markdown file's front matter (`---` lines at the top), which is not the text: its title, if it has one. */
@@ -69,9 +69,9 @@ const KIND_OF = (name: string) => /\.([A-Za-z0-9]+)$/.exec(name)?.[1]?.toLowerCa
 /** The document a file makes. Throws, in words for the person, when it cannot be one. */
 export async function importFile(file: File): Promise<Made> {
   const kind = KIND_OF(file.name);
-  if (kind === "doc") throw new Error("Word 97–2003 files (.doc) cannot be imported. Open it in Word and save it as .docx first.");
+  if (kind === "doc") throw new Error(t("Word 97–2003 files (.doc) cannot be imported. Open it in Word and save it as .docx first."));
   if (["odt", "rtf", "pages", "pdf"].includes(kind)) throw new Error(`.${kind} files cannot be imported. Save it as a Word document (.docx) or as Markdown first.`);
-  if (!["docx", "md", "markdown", "txt", "text"].includes(kind)) throw new Error("Only Word documents (.docx), Markdown (.md) and text (.txt) files can be imported.");
+  if (!["docx", "md", "markdown", "txt", "text"].includes(kind)) throw new Error(t("Only Word documents (.docx), Markdown (.md) and text (.txt) files can be imported."));
   if (file.size > MAX_FILE) throw new Error(t("The file is over {value} MB, which is more than can be imported.", { value: MAX_FILE >> 20 }));
   const bytes = new Uint8Array(await file.arrayBuffer());
   const notes: string[] = [];
@@ -92,7 +92,7 @@ export async function importFile(file: File): Promise<Made> {
       if (pictures.changed) notes.push((pictures.changed === 1 ? t("1 picture is a link now: documents keep pictures that are added to them.") : t("{changed} pictures are a link now: documents keep pictures that are added to them.", { changed: pictures.changed })));
     }
   }
-  if (!markdown.trim()) throw new Error("The file has no text to import.");
-  if (new TextEncoder().encode(markdown).length > MAX_MARKDOWN) throw new Error("This file is too long to import: the text is over 1 MB.");
+  if (!markdown.trim()) throw new Error(t("The file has no text to import."));
+  if (new TextEncoder().encode(markdown).length > MAX_MARKDOWN) throw new Error(t("This file is too long to import: the text is over 1 MB."));
   return { title, markdown, notes };
 }

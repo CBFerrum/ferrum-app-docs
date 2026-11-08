@@ -40,28 +40,28 @@ export function parseXml(src: string): XmlEl {
     if (lt < 0) break;
     if (src.startsWith("<!--", lt)) {
       const end = src.indexOf("-->", lt + 4);
-      if (end < 0) fail("a comment never ends");
+      if (end < 0) fail(t("a comment never ends"));
       i = end + 3;
     } else if (src.startsWith("<![CDATA[", lt)) {
       const end = src.indexOf("]]>", lt + 9);
-      if (end < 0) fail("a CDATA section never ends");
+      if (end < 0) fail(t("a CDATA section never ends"));
       open[open.length - 1]!.children.push(src.slice(lt + 9, end));
       i = end + 3;
     } else if (src.startsWith("<?", lt)) {
       const end = src.indexOf("?>", lt + 2);
-      if (end < 0) fail("a declaration never ends");
+      if (end < 0) fail(t("a declaration never ends"));
       i = end + 2;
     } else if (src.startsWith("<!", lt)) {
       // A doctype: skipped, with nothing from it used.
       const end = src.indexOf(">", lt + 2);
-      if (end < 0) fail("a declaration never ends");
+      if (end < 0) fail(t("a declaration never ends"));
       i = end + 1;
     } else if (src.startsWith("</", lt)) {
       const end = src.indexOf(">", lt + 2);
-      if (end < 0) fail("a tag never ends");
+      if (end < 0) fail(t("a tag never ends"));
       const name = src.slice(lt + 2, end).trim();
       const top = open.pop();
-      if (!top || top.name !== name || open.length === 0) fail(`</${name}> closes nothing`);
+      if (!top || top.name !== name || open.length === 0) fail(t("</{name}> closes nothing", { name }));
       i = end + 1;
     } else {
       // A start tag runs to the next > outside its quoted values.
@@ -74,25 +74,25 @@ export function parseXml(src: string): XmlEl {
         } else if (c === '"' || c === "'") quote = c;
         else if (c === ">") break;
       }
-      if (end >= src.length) fail("a tag never ends");
+      if (end >= src.length) fail(t("a tag never ends"));
       const inner = src.slice(lt + 1, end);
       const self = inner.endsWith("/");
       const body = self ? inner.slice(0, -1) : inner;
-      const name = /^[^\s/]+/.exec(body)?.[0] ?? fail("a tag has no name");
+      const name = /^[^\s/]+/.exec(body)?.[0] ?? fail(t("a tag has no name"));
       const attrs: Record<string, string> = {};
       for (const m of body.slice(name.length).matchAll(ATTR)) attrs[m[1]!] = unescapeXml(m[2] ?? m[3] ?? "");
       const el: XmlEl = { name, attrs, children: [] };
       open[open.length - 1]!.children.push(el);
       if (!self) {
-        if (open.length > MAX_DEPTH) fail("elements are nested too deeply");
+        if (open.length > MAX_DEPTH) fail(t("elements are nested too deeply"));
         open.push(el);
       }
       i = end + 1;
     }
   }
-  if (open.length !== 1) fail("an element is not closed");
+  if (open.length !== 1) fail(t("an element is not closed"));
   const first = root.children.find((c): c is XmlEl => typeof c !== "string");
-  if (!first) fail("there is no element");
+  if (!first) fail(t("there is no element"));
   return first!;
 }
 

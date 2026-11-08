@@ -2,6 +2,7 @@
 // by hand, and deflate is undone by `DecompressionStream`. Nothing is extracted to disk or run, and
 // no part may grow past a limit when unpacked.
 
+import { t } from "@ferrum/client";
 export interface ZipEntry {
   name: string;
   method: number;
@@ -10,7 +11,7 @@ export interface ZipEntry {
   offset: number;
 }
 
-const NOT_ZIP = "This is not a Word document: a .docx file is a zip, and this one could not be read as one.";
+const notZip = () => t("This is not a Word document: a .docx file is a zip, and this one could not be read as one.");
 
 /** The files in a zip, from its central directory (zip64 is not read). */
 export function zipEntries(bytes: Uint8Array): ZipEntry[] {
@@ -23,13 +24,13 @@ export function zipEntries(bytes: Uint8Array): ZipEntry[] {
       break;
     }
   }
-  if (end < 0) throw new Error(NOT_ZIP);
+  if (end < 0) throw new Error(notZip());
   const count = view.getUint16(end + 10, true);
   let p = view.getUint32(end + 16, true);
   const names = new TextDecoder();
   const out: ZipEntry[] = [];
   for (let n = 0; n < count; n++) {
-    if (p + 46 > bytes.length || view.getUint32(p, true) !== 0x02014b50) throw new Error(NOT_ZIP);
+    if (p + 46 > bytes.length || view.getUint32(p, true) !== 0x02014b50) throw new Error(notZip());
     const nameLength = view.getUint16(p + 28, true);
     const extraLength = view.getUint16(p + 30, true);
     const commentLength = view.getUint16(p + 32, true);
@@ -51,15 +52,15 @@ export const MAX_PART = 40 * 1024 * 1024;
 /** One file of a zip, unpacked. */
 export async function readEntry(bytes: Uint8Array, entry: ZipEntry, limit = MAX_PART): Promise<Uint8Array> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (entry.offset + 30 > bytes.length || view.getUint32(entry.offset, true) !== 0x04034b50) throw new Error(NOT_ZIP);
+  if (entry.offset + 30 > bytes.length || view.getUint32(entry.offset, true) !== 0x04034b50) throw new Error(notZip());
   const start = entry.offset + 30 + view.getUint16(entry.offset + 26, true) + view.getUint16(entry.offset + 28, true);
   const data = bytes.subarray(start, start + entry.compressedSize);
   if (entry.method === 0) {
-    if (data.length > limit) throw new Error("A part of the file is too large to read.");
+    if (data.length > limit) throw new Error(t("A part of the file is too large to read."));
     return data;
   }
-  if (entry.method !== 8) throw new Error("The file uses a kind of compression this page cannot read.");
-  if (entry.size > limit) throw new Error("A part of the file is too large to read.");
+  if (entry.method !== 8) throw new Error(t("The file uses a kind of compression this page cannot read."));
+  if (entry.size > limit) throw new Error(t("A part of the file is too large to read."));
   const stream = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
@@ -70,7 +71,7 @@ export async function readEntry(bytes: Uint8Array, entry: ZipEntry, limit = MAX_
     total += value.length;
     if (total > limit) {
       void reader.cancel();
-      throw new Error("A part of the file is too large to read.");
+      throw new Error(t("A part of the file is too large to read."));
     }
     chunks.push(value);
   }
