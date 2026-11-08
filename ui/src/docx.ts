@@ -6,6 +6,7 @@
 //
 // The file is read in the browser and nothing in it is run or fetched.
 
+import { t as tr } from "@ferrum/client";
 import { type XmlEl, child, elements, parseXml, textOf } from "./xml";
 import { readText, zipEntries } from "./zip";
 
@@ -378,7 +379,7 @@ export function renderBlocks(blocks: Block[]): string {
 export async function docxToMarkdown(bytes: Uint8Array): Promise<Imported> {
   const entries = zipEntries(bytes);
   const document = await readText(bytes, entries, "word/document.xml");
-  if (document === null) throw new Error("This is not a Word document: it has no text part.");
+  if (document === null) throw new Error(tr("This is not a Word document: it has no text part."));
   const [styles, numbering, rels] = await Promise.all([
     readText(bytes, entries, "word/styles.xml"),
     readText(bytes, entries, "word/numbering.xml"),
@@ -386,10 +387,10 @@ export async function docxToMarkdown(bytes: Uint8Array): Promise<Imported> {
   ]);
   const reader = new Reader({ styles: styleNames(styles), numbering: numberingKinds(numbering), links: linkTargets(rels) });
   const body = child(parseXml(document), "w:body");
-  if (!body) throw new Error("This Word document has no text.");
+  if (!body) throw new Error(tr("This Word document has no text."));
   reader.body(body);
   const markdown = renderBlocks(reader.blocks);
-  if (!markdown.trim()) throw new Error("This Word document has no text to import.");
-  if (new TextEncoder().encode(markdown).length > MAX_MARKDOWN) throw new Error("This document is too long to import: the text is over 1 MB.");
+  if (!markdown.trim()) throw new Error(tr("This Word document has no text to import."));
+  if (new TextEncoder().encode(markdown).length > MAX_MARKDOWN) throw new Error(tr("This document is too long to import: the text is over 1 MB."));
   return { markdown, pictures: reader.pictures };
 }

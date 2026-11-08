@@ -53,7 +53,7 @@ function suggestionMark(name: "insertion" | "deletion", tag: "ins" | "del") {
         "data-name": mark.attrs.name,
         "data-at": mark.attrs.at,
         class: name === "insertion" ? "doc-ins" : "doc-del",
-        title: t("{value} by {value2}", { value: name === "insertion" ? "Suggested" : "Suggested removing", value2: String(mark.attrs.name || "someone") }),
+        title: t("{value} by {value2}", { value: name === "insertion" ? "Suggested" : t("Suggested removing"), value2: String(mark.attrs.name || "someone") }),
       }),
       0,
     ],

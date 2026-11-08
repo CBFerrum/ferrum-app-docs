@@ -101,7 +101,7 @@ export function ordered(items: DocItem[], sort: Sort): DocItem[] {
 /** Whose a document is, in a name: "You", their name, else their address. */
 export function ownerName(email: string | null | undefined, me: string | undefined, people: { email: string; full_name: string }[]): string {
   if (!email) return "";
-  if (email.toLowerCase() === me?.toLowerCase()) return "You";
+  if (email.toLowerCase() === me?.toLowerCase()) return t("You");
   return people.find((p) => p.email.toLowerCase() === email.toLowerCase())?.full_name || email;
 }
 

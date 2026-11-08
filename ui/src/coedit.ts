@@ -13,7 +13,7 @@ import * as encoding from "lib0/encoding";
 import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
-import { offlineEnv, pendingName } from "@ferrum/client";
+import { offlineEnv, pendingName, t as tr } from "@ferrum/client";
 
 export type Access = "read" | "write";
 
@@ -60,7 +60,7 @@ const OPEN = 1;
 /** A question every 20 s; no answer to anything for 45 s means the connection died unnoticed. */
 const PING = 20_000;
 const SILENCE = 45_000;
-const LOST = "You can only view this document now; your latest changes were not saved.";
+const lostWords = () => tr("You can only view this document now; your latest changes were not saved.");
 /** How long unsaved changes nobody came back for are kept in the browser. */
 const KEEP_DAYS = 30;
 /** The origin of changes taken back from the browser: sent like ones typed here. */
@@ -166,9 +166,9 @@ function indexedKeeper(database: string): Keeper {
 }
 /** Closes after which trying again would not help. */
 const FINAL: Record<number, string> = {
-  4400: "This tab's copy of the document could not be sent. Reload the page to continue.",
-  4403: "Your access to this document has ended.",
-  4404: "This document does not exist, or you do not have access to it.",
+  get 4400() { return tr("This tab's copy of the document could not be sent. Reload the page to continue."); },
+  get 4403() { return tr("Your access to this document has ended."); },
+  get 4404() { return tr("This document does not exist, or you do not have access to it."); },
 };
 
 export function socketUrl(pkg: string, id: string, loc: { protocol: string; host: string } = location): string {
@@ -242,7 +242,7 @@ export class CoeditSession {
     const token = this.token();
     if (this.stopped || this.state.closed) return;
     if (token === undefined || token === "") {
-      this.set({ closed: true, error: "Your session has ended. Sign in again to keep editing." });
+      this.set({ closed: true, error: tr("Your session has ended. Sign in again to keep editing.") });
       return;
     }
     let ws: SocketLike;
@@ -274,7 +274,7 @@ export class CoeditSession {
       // Others' cursors are not shown while this tab cannot see them move.
       const others = [...this.awareness.getStates().keys()].filter((c) => c !== this.doc.clientID);
       awarenessProtocol.removeAwarenessStates(this.awareness, others, this);
-      const final = FINAL[e.code] ?? (e.code === 4401 ? "Your session has ended. Sign in again to keep editing." : null);
+      const final = FINAL[e.code] ?? (e.code === 4401 ? tr("Your session has ended. Sign in again to keep editing.") : null);
       if (this.stopped) return;
       if (final) {
         // Access ended or the document is gone: what this browser kept for it can never be saved.
@@ -358,7 +358,7 @@ export class CoeditSession {
     if (!kept || this.stopped) return;
     if (access !== "write") {
       void this.keeper.drop(key).catch(() => undefined);
-      this.set({ error: LOST });
+      this.set({ error: lostWords() });
       return;
     }
     try {
@@ -391,8 +391,8 @@ export class CoeditSession {
       const me = msg.user as Person;
       const access: Access = msg.access === "write" ? "write" : "read";
       // Back with view access only: what was typed here meanwhile cannot be stored.
-      const lost = access === "read" && this.dirty ? LOST : null;
-      this.set({ online: true, access, me, error: lost ?? (this.state.error === LOST ? LOST : null) });
+      const lost = access === "read" && this.dirty ? lostWords() : null;
+      this.set({ online: true, access, me, error: lost ?? (this.state.error === lostWords() ? lostWords() : null) });
       this.keepKey = `${this.url}|${me.id}`;
       this.awareness.setLocalStateField("user", { name: me.name, color: me.color });
       // Our state vector (the server answers with what we lack), and who we are.
@@ -411,7 +411,7 @@ export class CoeditSession {
       // Everything stored: the browser need not keep it any more.
       if (!this.state.unsaved) this.keepSoon();
     } else if (msg.access === "read" || msg.access === "write") {
-      this.set({ access: msg.access, error: msg.access === "read" && this.sent > this.stored ? LOST : this.state.error });
+      this.set({ access: msg.access, error: msg.access === "read" && this.sent > this.stored ? lostWords() : this.state.error });
     } else if (typeof msg.error === "string") {
       this.set({ error: msg.error });
     }
@@ -468,7 +468,7 @@ export class CoeditSession {
     if (Date.now() - this.lastHeard > SILENCE) {
       // Nothing for a long time: the connection died without telling us.
       ws.close(4000, "no answer");
-      ws.onclose?.({ code: 4000, reason: "no answer" });
+      ws.onclose?.({ code: 4000, reason: tr("no answer") });
       return;
     }
     const encoder = encoding.createEncoder();

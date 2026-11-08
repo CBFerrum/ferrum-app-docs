@@ -175,7 +175,7 @@ export function Choices({ choices, index, listId, label, query, status }: { choi
       </div>
       {status}
       <div className="sr-only" role="status">
-        {choices.length === 1 ? t("1 choice.") : t("{length} choices.", { length: choices.length })} {t("Use the up and down arrow keys, then Enter.")}
+        {(choices.length === 1 ? t("1 choice. Use the up and down arrow keys, then Enter.") : t("{length} choices. Use the up and down arrow keys, then Enter.", { length: choices.length }))}
       </div>
     </>
   );
@@ -256,7 +256,7 @@ function MentionMenu({ editor, open, listId, menu, onMentioned }: { editor: Edit
         icon: <FileText size={16} />,
         title: docTitle(h.title),
         hint: h.subtitle,
-        group: "Records and documents",
+        group: t("Records and documents"),
         run: () => insert({ kind: "record", id: h.id, entity: h.entity }, mentionLabel(docTitle(h.title))),
       }),
     ),

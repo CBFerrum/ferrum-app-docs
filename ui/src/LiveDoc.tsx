@@ -103,10 +103,10 @@ function inOtherField(target: EventTarget | null): boolean {
 /** What the bar says about the document's connection and saving; `keeps`: the browser keeps
  *  unsaved changes beyond this tab. */
 export function statusText(s: Pick<CoeditState, "online" | "loaded" | "unsaved" | "closed">, keeps = false): string {
-  if (s.closed) return "Not connected";
-  if (!s.loaded) return "Opening…";
-  if (!s.online) return s.unsaved ? (keeps ? t("Offline: your changes are kept in this browser until the connection is back") : t("Offline: your changes are kept in this tab until the connection is back")) : "Reconnecting…";
-  return s.unsaved ? "Saving…" : "Saved";
+  if (s.closed) return t("Not connected");
+  if (!s.loaded) return t("Opening…");
+  if (!s.online) return s.unsaved ? (keeps ? t("Offline: your changes are kept in this browser until the connection is back") : t("Offline: your changes are kept in this tab until the connection is back")) : t("Reconnecting…");
+  return s.unsaved ? t("Saving…") : t("Saved");
 }
 
 export function LiveDocPage() {
@@ -183,7 +183,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       editable: false,
       extensions: [
         ...documentExtensions(file),
-        Placeholder.configure({ placeholder: "Type / for blocks and @ to mention someone, or just start writing" }),
+        Placeholder.configure({ placeholder: t("Type / for blocks and @ to mention someone, or just start writing") }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
         Suggestions.configure({ onRefused: () => toast(t("While suggesting, only words change: switch to Editing to change formatting or structure")) }),
         Find,
@@ -297,7 +297,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   /** Text and Markdown carry the words only, so suggestions waiting show up as both the old and the new. */
   const suggestionsNote = () => {
-    if (pending > 0) toast(t("{pending} {value} still waiting: the file has the words as suggested and as they were", { pending, value: pending === 1 ? "suggestion is" : "suggestions are" }), "info");
+    if (pending > 0) toast(t("{pending} {value} still waiting: the file has the words as suggested and as they were", { pending, value: pending === 1 ? t("suggestion is") : t("suggestions are") }), "info");
   };
   const exportMarkdown = async () => {
     try {
@@ -310,7 +310,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   const copy = async () => {
     try {
-      const made = await act("copy", { item: file, to: info.parent, name: `Copy of ${info.name}` });
+      const made = await act("copy", { item: file, to: info.parent, name: t("Copy of {name}", { name: info.name }) });
       toast(t("Copy made"));
       navigate(`/d/${made.id}`);
     } catch (e) {
@@ -421,7 +421,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           <Button size="sm" aria-pressed={details} onClick={() => void toggleDetails()}>
             {t("Comments and history")}
           </Button>
-          <Menu label={t("File")} ariaLabel="File menu" buttonClass="btn btn-default btn-sm">
+          <Menu label={t("File")} ariaLabel={t("File menu")} buttonClass="btn btn-default btn-sm">
             {(close) => {
               const item = (run: () => unknown) => () => {
                 close();
@@ -686,7 +686,7 @@ function Toolbar({
       <Tool label={t("Center")} icon={AlignCenter} active={s.center} onClick={() => run().setTextAlign("center").run()} />
       <Tool label={t("Align right")} icon={AlignRight} active={s.right} onClick={() => run().setTextAlign("right").run()} />
       <Sep />
-      <Menu label={t("Table")} ariaLabel="Table" buttonClass="doc-tool doc-tool-text">
+      <Menu label={t(t("Table"))} ariaLabel={t("Table")} buttonClass="doc-tool doc-tool-text">
         {(close) => {
           const item = (go: () => boolean, label: string, needsTable = true) =>
             (!needsTable || s.table) && (

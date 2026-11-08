@@ -85,7 +85,7 @@ export function FindBar({
     const tr = replaceAll(editor.state, withText);
     if (!tr) return;
     editor.view.dispatch(tr);
-    toast(t("Replaced {length} {value}", { length: tr.steps.length, value: tr.steps.length === 1 ? "match" : "matches" }));
+    toast((tr.steps.length === 1 ? t("Replaced {length} match", { length: tr.steps.length }) : t("Replaced {length} matches", { length: tr.steps.length })));
   };
   const onFindKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
