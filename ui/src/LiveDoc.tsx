@@ -7,13 +7,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Collaboration } from "@tiptap/extension-collaboration";
 import { CollaborationCaret } from "@tiptap/extension-collaboration-caret";
-import { Placeholder } from "@tiptap/extensions";
+import { CharacterCount, Placeholder } from "@tiptap/extensions";
+import { getSchema } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import { ArrowLeft, TableOfContents } from "lucide-react";
 import { Search } from "lucide-react";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, Suspense, lazy, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { ApiError, api, download, errorMessage, initials, openPrint, saveBlob, shell, t, isolate } from "@ferrum/client";
+import { ApiError, api, download, errorMessage, initials, saveBlob, shell, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
@@ -28,6 +29,15 @@ import { remember, remembered } from "./local";
 import { ColumnResize } from "./format";
 import { PasteTidy, hasForeignImages, hasWords, localizeImages } from "./paste";
 import { Toolbar } from "./Toolbar";
+import { type Compat, FORMAT, checkFormat, readFormat, stamp, usesNewer } from "./compat";
+import { NewerFormat } from "./NewerFormat";
+import { LinkCard, LinkPanel } from "./LinkTools";
+import { PageRegion } from "./PageRegions";
+import { StatusBar } from "./StatusBar";
+import { dims, isUnset, paperFor, PRESETS, toPx, unitFor, writeSetup } from "./page";
+import { goTo, insertFootnoteAndJump } from "./pages";
+import { headingByAnchor, targetOf } from "./links";
+import { usePageLayout, usePageSetup, usePrintStyle } from "./usePages";
 import { addImages, uploadImage } from "./upload";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { openMention } from "./mention";
@@ -39,7 +49,10 @@ import { Tips } from "./Tool";
 import { Suggestions, setSuggesting, suggestionsIn } from "./suggest";
 import "./livedoc.css";
 
-export { cleanHref } from "./LinkDialog";
+// The page setup dialog is loaded when somebody opens it.
+const PageDialog = lazy(() => import("./PageDialog"));
+
+export { cleanHref } from "./links";
 
 /** Drive's panel of a file's comments and history (a contextual side panel of Drive). */
 const DETAILS_PANEL = "drive.details";
@@ -116,7 +129,26 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const canShare = useCanIntent("share", "file");
   const location = useLocation();
   const meta = useMetaIndex().data;
-  const editable = state.loaded && state.access === "write" && !state.closed;
+  // Whether this client can read what is stored (compat.ts): checked once the content has arrived and before
+  // the editor is bound to it, and again as others change it.
+  const schema = useMemo(() => getSchema(documentExtensions(file)), [file]);
+  const [recheck, setRecheck] = useState(0);
+  const compat: Compat = useMemo(() => (state.loaded ? checkFormat(session.doc, schema) : { ok: true }), [state.loaded, recheck, session.doc, schema]);
+  useEffect(() => {
+    if (!state.loaded) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const later = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setRecheck((n) => n + 1), 600);
+    };
+    session.doc.on("update", later);
+    return () => {
+      clearTimeout(timer);
+      session.doc.off("update", later);
+    };
+  }, [state.loaded, session.doc]);
+  const ready = state.loaded && compat.ok;
+  const editable = ready && state.access === "write" && !state.closed;
   const title = docTitle(info.name);
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
@@ -142,6 +174,15 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const [finding, setFinding] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [findFocus, setFindFocus] = useState(0);
+  // Links: the panel (Ctrl or ⌘ K), and opening another document from a link.
+  const [linking, setLinking] = useState(false);
+  const openDoc = useRef<(id: string) => void>(() => undefined);
+  openDoc.current = (id) => navigate(`/d/${id}`);
+  const [paging, setPaging] = useState(false);
+  const setup = usePageSetup(session.doc);
+  const paper = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState(0);
 
   const editor = useEditor(
     {
@@ -154,10 +195,16 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
         Suggestions.configure({ onRefused: () => toast(t("While suggesting, only words change: switch to Editing to change formatting or structure")) }),
         Find,
+        CharacterCount,
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
-        Collaboration.configure({ document: session.doc, field: "default" }),
-        // ui-lint-allow raw-color: fallback for a collaborator's own (server-chosen) cursor colour
-        CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
+        // Bound to the shared text only once it is known to be readable (compat.ts): binding is what projects it.
+        ...(ready
+          ? [
+              Collaboration.configure({ document: session.doc, field: "default" }),
+              // ui-lint-allow raw-color: fallback for a collaborator's own (server-chosen) cursor colour
+              CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
+            ]
+          : []),
       ],
       editorProps: {
         attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true" },
@@ -208,8 +255,14 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         handleClick: (view, _pos, event) => {
           const target = event.target as HTMLElement | null;
           const a = target?.closest("a[href]");
-          if (a && (event.metaKey || event.ctrlKey)) {
-            window.open(a.getAttribute("href") ?? "", "_blank", "noopener,noreferrer");
+          if (a && (event.metaKey || event.ctrlKey || !view.editable)) {
+            const href = a.getAttribute("href") ?? "";
+            const to = targetOf(href);
+            if (to.kind === "heading") {
+              const h = headingByAnchor(view.state.doc, to.anchor);
+              if (h) goTo(view, h.pos);
+            } else if (to.kind === "doc") openDoc.current(to.id);
+            else window.open(href, "_blank", "noopener,noreferrer");
             return true;
           }
           const m = target?.closest<HTMLElement>('[data-mention="record"]');
@@ -218,7 +271,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         },
       },
     },
-    [session],
+    [session, ready],
   );
   useEffect(() => {
     current.current = editor;
@@ -229,6 +282,58 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   useEffect(() => {
     if (editor && state.me) editor.commands.updateUser({ name: state.me.name, color: state.me.color });
   }, [editor, state.me]);
+
+  // The page: as wide as the paper where the screen has room, else as wide as the screen. A new empty document
+  // takes its person's usual paper (Letter for en-US, A4 elsewhere) the first time an editor opens it; a document
+  // that never had a page keeps the A4 it has always been exported as.
+  useEffect(() => {
+    const el = paper.current;
+    if (!el) return;
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      setRoom(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!editor || !editable || !state.loaded || !isUnset(session.doc) || session.doc.getXmlFragment("default").length > 0) return;
+    const lang = document.documentElement.lang || navigator.language || "en";
+    writeSetup(session.doc, { size: paperFor(lang), orientation: "portrait", ...PRESETS.normal, differentFirst: false });
+  }, [editor, editable, state.loaded, session.doc]);
+  const [pageW, pageH] = dims(setup).map(toPx) as [number, number];
+  const real = room >= pageW;
+  const printNow = usePrintStyle(session.doc, setup, title);
+  const layout = usePageLayout(editor, sheet, setup, real, ready);
+  // The first use of a format 2 feature raises the document's recorded format (compat.ts).
+  useEffect(() => {
+    if (!editor || !editable) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => !editor.isDestroyed && readFormat(session.doc) < FORMAT && usesNewer(editor.state.doc) && stamp(session.doc), 1000);
+    };
+    editor.on("update", check);
+    check();
+    return () => {
+      clearTimeout(timer);
+      editor.off("update", check);
+    };
+  }, [editor, editable, session.doc]);
+  const unit = unitFor(document.documentElement.lang || navigator.language || "en");
+  // Ctrl or ⌘ K: the link panel, where the text is being edited.
+  useEffect(() => {
+    const onLink = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k" && (e.target as HTMLElement | null)?.closest?.(".doc-body") && editable && !suggesting) {
+        e.preventDefault();
+        setLinking(true);
+      }
+    };
+    window.addEventListener("keydown", onLink);
+    return () => window.removeEventListener("keydown", onLink);
+  }, [editable, suggesting]);
 
   // Drive's lists show who has the file open.
   usePresence(file, state.loaded ? (state.access === "write" ? "edit" : "view") : null);
@@ -298,6 +403,17 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       suggestionsNote();
     } catch (e) {
       toast(errorMessage(e), "error");
+    }
+  };
+  /** Paste what the clipboard holds as plain words (the menu's own way; the keys are Ctrl or ⌘ Shift V). */
+  const pastePlain = async () => {
+    try {
+      const words = await navigator.clipboard.readText();
+      if (!words || !current.current) return;
+      current.current.commands.focus();
+      current.current.view.pasteText(words);
+    } catch {
+      toast(t("The browser did not allow reading the clipboard: press Ctrl+Shift+V (⌘⇧V on a Mac) to paste without formatting"), "info");
     }
   };
   const copy = async () => {
@@ -389,7 +505,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           </a>
         )}
         <Title name={info.name} canRename={canEdit && !!space.data} rename={(name) => act("rename", { item: file, name }).then(() => qc.invalidateQueries({ queryKey: ["drive"] }))} />
-        {saveState(state, session.keeps) ? (
+        {!compat.ok ? (
+          <span className="doc-status" role="status">
+            {t("Read only: newer format")}
+          </span>
+        ) : saveState(state, session.keeps) ? (
           <span title={statusText(state, session.keeps)}>
             <SaveStatus state={saveState(state, session.keeps)!} />
           </span>
@@ -420,6 +540,50 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           <Button size="sm" aria-pressed={details} onClick={() => void toggleDetails()}>
             {t("Comments and history")}
           </Button>
+          {editor && editable && (
+            <Menu label={t("Edit")} ariaLabel={t("Edit menu")} buttonClass="btn btn-default btn-sm">
+              {(close) => {
+                const item = (run: () => unknown) => () => {
+                  close();
+                  void run();
+                };
+                return (
+                  <>
+                    <MenuItem onSelect={item(() => editor.chain().focus().undo().run())}>{t("Undo")}</MenuItem>
+                    <MenuItem onSelect={item(() => editor.chain().focus().redo().run())}>{t("Redo")}</MenuItem>
+                    <MenuItem onSelect={item(() => (editor.commands.focus(), document.execCommand("cut")))}>{t("Cut")}</MenuItem>
+                    <MenuItem onSelect={item(() => (editor.commands.focus(), document.execCommand("copy")))}>{t("Copy")}</MenuItem>
+                    <MenuItem onSelect={item(pastePlain)}>{t("Paste without formatting")}</MenuItem>
+                    <MenuItem onSelect={item(() => editor.chain().focus().selectAll().run())}>{t("Select all")}</MenuItem>
+                    <MenuItem onSelect={item(() => openFind(false))}>{t("Find")}</MenuItem>
+                    <MenuItem onSelect={item(() => openFind(true))}>{t("Find and replace")}</MenuItem>
+                  </>
+                );
+              }}
+            </Menu>
+          )}
+          {editor && editable && (
+            <Menu label={t("Insert")} ariaLabel={t("Insert menu")} buttonClass="btn btn-default btn-sm">
+              {(close) => {
+                const item = (run: () => unknown) => () => {
+                  close();
+                  void run();
+                };
+                const run = () => editor.chain().focus();
+                return (
+                  <>
+                    <MenuItem onSelect={item(pickImages)}>{t("Image")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>{t("Table")}</MenuItem>
+                    <MenuItem onSelect={item(() => setLinking(true))}>{t("Link")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertPageBreak().run())}>{t("Page break")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertContents().run())}>{t("Table of contents")}</MenuItem>
+                    <MenuItem onSelect={item(() => insertFootnoteAndJump(editor))}>{t("Footnote")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().setHorizontalRule().run())}>{t("Divider")}</MenuItem>
+                  </>
+                );
+              }}
+            </Menu>
+          )}
           <Menu label={t("File")} ariaLabel={t("File menu")} buttonClass="btn btn-default btn-sm">
             {(close) => {
               const item = (run: () => unknown) => () => {
@@ -433,7 +597,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                   <MenuItem onSelect={item(() => exportAs("docx"))}>{t("Download as Word (.docx)")}</MenuItem>
                   <MenuItem onSelect={item(() => exportAs("txt"))}>{t("Download as text (.txt)")}</MenuItem>
                   <MenuItem onSelect={item(exportMarkdown)}>{t("Download as Markdown (.md)")}</MenuItem>
-                  <MenuItem onSelect={item(() => openPrint(`${content}?format=html&inline=1`).catch((e: unknown) => toast(errorMessage(e), "error")))}>{t("Print")}</MenuItem>
+                  {editable && <MenuItem onSelect={item(() => setPaging(true))}>{t("Page setup…")}</MenuItem>}
+                  <MenuItem onSelect={item(() => (printNow(), window.print()))}>{t("Print")}</MenuItem>
                   <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>{t("Version history")}</MenuItem>
                   {space.data && info.parent && <MenuItem onSelect={item(copy)}>{t("Make a copy")}</MenuItem>}
                   {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>{t("Save as a template")}</MenuItem>}
@@ -445,14 +610,38 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{isolate(state.error)}</Alert>}
       <div className="doc-tools">
-        {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
+        {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} onLink={() => setLinking(true)} />}
         {editor && finding && state.loaded && <FindBar editor={editor} canReplace={editable} replacing={replacing} setReplacing={setReplacing} focus={findFocus} onClose={() => setFinding(false)} />}
       </div>
       <div className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
         {editor && tocShown && <Contents editor={editor} onHide={() => showContents(false)} />}
-        <div className="doc-paper">
+        {!compat.ok ? (
+          <NewerFormat download={(f) => void exportAs(f)} />
+        ) : (
+        <div className="doc-paper" ref={paper}>
           {!state.loaded && !state.closed && <ReaderSkeleton />}
-          <EditorContent editor={editor} hidden={!state.loaded} />
+          <div
+            ref={sheet}
+            className="doc-sheet"
+            hidden={!state.loaded}
+            style={
+              {
+                "--sheet-w": real ? `${pageW}px` : "100%",
+                "--sheet-h": real ? `${pageH}px` : "60vh",
+                "--mt": `${real ? toPx(setup.top) : Math.min(toPx(setup.top), 48)}px`,
+                "--mb": `${real ? toPx(setup.bottom) : Math.min(toPx(setup.bottom), 48)}px`,
+                "--ml": `${real ? toPx(setup.left) : Math.min(toPx(setup.left), 24)}px`,
+                "--mr": `${real ? toPx(setup.right) : Math.min(toPx(setup.right), 24)}px`,
+              } as React.CSSProperties
+            }
+          >
+            {ready && setup.differentFirst && <PageRegion doc={session.doc} name="firstHeader" editable={editable && !suggesting} setup={setup} />}
+            {ready && <PageRegion doc={session.doc} name="header" editable={editable && !suggesting} setup={setup} />}
+            <EditorContent className="doc-sheet-text" editor={editor} hidden={!state.loaded} />
+            {ready && <PageRegion doc={session.doc} name="footer" editable={editable && !suggesting} setup={setup} />}
+            {ready && setup.differentFirst && <PageRegion doc={session.doc} name="firstFooter" editable={editable && !suggesting} setup={setup} />}
+            {real && layout?.marks.map((m) => <div key={m.page} className="doc-pagemark" style={{ insetBlockStart: m.top }} data-label={t("Page {page}", { page: m.page })} aria-hidden />)}
+          </div>
           {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
           {editor && editable && !suggesting && (
             <>
@@ -460,7 +649,10 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
               <ImageBar editor={editor} file={file} />
             </>
           )}
+          {editor && state.loaded && !linking && <LinkCard editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} editable={editable && !suggesting} edit={() => setLinking(true)} />}
+          {editor && linking && <LinkPanel editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} onClose={() => setLinking(false)} />}
         </div>
+        )}
         {editor && state.loaded && (
           <CommentRail
             editor={editor}
@@ -476,6 +668,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           />
         )}
       </div>
+      {editor && ready && <StatusBar editor={editor} pages={layout?.pages ?? null} setup={setup} />}
       <input
         ref={picker}
         type="file"
@@ -488,6 +681,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           addPictures(files);
         }}
       />
+      {paging && (
+        <Suspense fallback={null}>
+          <PageDialog doc={session.doc} setup={setup} unit={unit} onClose={() => setPaging(false)} />
+        </Suspense>
+      )}
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}
     </div>
     </Tips>

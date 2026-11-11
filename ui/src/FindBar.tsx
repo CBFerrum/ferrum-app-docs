@@ -3,7 +3,7 @@
 // to the text. Anyone may find; whoever may change the text may replace.
 
 import { type Editor, useEditorState } from "@tiptap/react";
-import { CaseSensitive, ChevronDown, ChevronUp, Replace, X } from "lucide-react";
+import { CaseSensitive, WholeWord, ChevronDown, ChevronUp, Replace, X } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { Button, toast } from "@ferrum/kit";
 import { findKey, replaceAll, replaceOne, setFind } from "./find";
@@ -42,9 +42,9 @@ export function FindBar({
     editor,
     selector: ({ editor: e }) => {
       const st = findKey.getState(e.state);
-      return { query: st?.query ?? "", matchCase: st?.matchCase ?? false, count: st?.matches.length ?? 0, current: st?.current ?? -1, more: st?.more ?? false };
+      return { query: st?.query ?? "", matchCase: st?.matchCase ?? false, wholeWord: st?.wholeWord ?? false, count: st?.matches.length ?? 0, current: st?.current ?? -1, more: st?.more ?? false };
     },
-    equalityFn: (a, b) => !!b && a.query === b.query && a.matchCase === b.matchCase && a.count === b.count && a.current === b.current && a.more === b.more,
+    equalityFn: (a, b) => !!b && a.query === b.query && a.matchCase === b.matchCase && a.wholeWord === b.wholeWord && a.count === b.count && a.current === b.current && a.more === b.more,
   });
 
   // What is typed here is what is searched for (and the words selected when the bar opened).
@@ -61,7 +61,7 @@ export function FindBar({
     if (f.current < 0 || editor.isDestroyed) return;
     const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
     editor.view.dom.querySelector<HTMLElement>(".doc-found-current")?.scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
-  }, [editor, f.current, f.query, f.matchCase]);
+  }, [editor, f.current, f.query, f.matchCase, f.wholeWord]);
   // Closing clears the marks.
   useEffect(
     () => () => {
@@ -79,7 +79,10 @@ export function FindBar({
   };
   const replaceThis = () => {
     const tr = replaceOne(editor.state, withText);
-    if (tr) editor.view.dispatch(tr);
+    if (!tr) return;
+    editor.view.dispatch(tr);
+    // On to the next match (the one replaced is gone from the list).
+    editor.view.dispatch(setFind(editor.state, { current: f.current }));
   };
   const replaceEvery = () => {
     const tr = replaceAll(editor.state, withText);
@@ -111,6 +114,7 @@ export function FindBar({
         <Tool label={t("Previous match (Shift+Enter)")} icon={ChevronUp} disabled={!f.count} onClick={() => go(-1)} />
         <Tool label={t("Next match (Enter)")} icon={ChevronDown} disabled={!f.count} onClick={() => go(1)} />
         <Tool label={t("Match case")} icon={CaseSensitive} active={f.matchCase} onClick={() => editor.view.dispatch(setFind(editor.state, { matchCase: !f.matchCase }))} />
+        <Tool label={t("Whole word")} icon={WholeWord} active={f.wholeWord} onClick={() => editor.view.dispatch(setFind(editor.state, { wholeWord: !f.wholeWord }))} />
         {canReplace && (
           <>
             <Sep />

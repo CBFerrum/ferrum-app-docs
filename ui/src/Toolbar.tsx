@@ -58,16 +58,27 @@ import {
 } from "@ferrum/kit/primitives";
 import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { DEFAULT_SIZE, FONTS, LINE_HEIGHTS, MAX_SIZE, MIN_SIZE, SIZES, cleanColor, cleanFontFamily, cleanFontSize, cleanLineHeight, cleanSpace, fontStack } from "./format";
-import { LinkDialog } from "./LinkDialog";
 import { Palette, gridKeys } from "./Palette";
 import { Sep, Tip, Tool } from "./Tool";
 
 const STYLES = [
   { id: "p", get label() { return t("Text"); } },
+  { id: "title", get label() { return t("Title"); } },
+  { id: "subtitle", get label() { return t("Subtitle"); } },
   { id: "h1", get label() { return t("Heading 1"); } },
   { id: "h2", get label() { return t("Heading 2"); } },
   { id: "h3", get label() { return t("Heading 3"); } },
+  { id: "h4", get label() { return t("Heading 4"); } },
+  { id: "h5", get label() { return t("Heading 5"); } },
+  { id: "h6", get label() { return t("Heading 6"); } },
 ] as const;
+
+/** The paragraph style of the selection: a heading's level, Title or Subtitle, or plain text. */
+function styleOf(e: Editor): (typeof STYLES)[number]["id"] {
+  for (let level = 1; level <= 6; level++) if (e.isActive("heading", { level })) return `h${level}` as "h1";
+  const role = e.getAttributes("paragraph").role;
+  return role === "title" || role === "subtitle" ? role : "p";
+}
 
 /** What the toolbar shows of the selection. Compared by value, so the row redraws only when it changes. */
 function selectionState(e: Editor) {
@@ -75,7 +86,7 @@ function selectionState(e: Editor) {
   const block = e.isActive("heading") ? e.getAttributes("heading") : e.getAttributes("paragraph");
   const inList = e.isActive("bulletList") || e.isActive("orderedList");
   return {
-    style: e.isActive("heading", { level: 1 }) ? "h1" : e.isActive("heading", { level: 2 }) ? "h2" : e.isActive("heading", { level: 3 }) ? "h3" : "p",
+    style: styleOf(e),
     font: cleanFontFamily(text.fontFamily),
     size: cleanFontSize(text.fontSize),
     color: cleanColor(text.color),
@@ -369,15 +380,16 @@ export function Toolbar({
   adding,
   suggesting,
   setSuggesting: setMode,
+  onLink,
 }: {
   editor: Editor;
   pickImages: () => void;
   adding: boolean;
   suggesting: boolean;
   setSuggesting: (on: boolean) => void;
+  onLink: () => void;
 }) {
   const s = useEditorState({ editor, selector: ({ editor: e }) => selectionState(e) });
-  const [linking, setLinking] = useState(false);
   const [spacing, setSpacing] = useState(false);
   const run = () => editor.chain().focus();
   const bar = useRef<HTMLDivElement>(null);
@@ -465,8 +477,9 @@ export function Toolbar({
               <DropdownMenuRadioGroup
                 value={s.style}
                 onValueChange={(v) => {
-                  if (v === "p") run().setParagraph().run();
-                  else run().setHeading({ level: Number(v.slice(1)) as 1 | 2 | 3 }).run();
+                  if (v === "p") run().setParagraphRole(null).run();
+                  else if (v === "title" || v === "subtitle") run().setParagraphRole(v).run();
+                  else run().setHeading({ level: Number(v.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6 }).run();
                 }}
               >
                 {STYLES.map((o) => (
@@ -524,7 +537,7 @@ export function Toolbar({
       keep: true,
       node: (
         <>
-          <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
+          <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} keys="Mod-k" active={s.link} onClick={onLink} />
           <Tool label={adding ? t("Adding the image…") : t("Image")} icon={ImagePlus} disabled={adding} onClick={pickImages} />
           <TablePicker editor={editor} active={s.table} />
         </>
@@ -713,7 +726,6 @@ export function Toolbar({
           </Popover>
         </div>
       )}
-      {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
       {spacing && <SpacingDialog editor={editor} sel={s} onClose={() => setSpacing(false)} />}
     </div>
   );
