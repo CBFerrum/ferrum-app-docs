@@ -18,7 +18,8 @@ const GROUPS: { id: KeyGroup; label: () => string }[] = [
 export default function ShortcutHelp({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} title={t("Keyboard shortcuts")} footer={<Button onClick={onClose}>{t("Close")}</Button>}>
-      <div className="doc-keys">
+      {/* Scrolls by itself, and can be scrolled from the keyboard. */}
+      <div className="doc-keys" tabIndex={0} role="region" aria-label={t("Keyboard shortcuts")}>
         {GROUPS.map((g) => (
           <section key={g.id} aria-labelledby={`doc-keys-${g.id}`}>
             <h3 id={`doc-keys-${g.id}`} className="doc-keys-group">

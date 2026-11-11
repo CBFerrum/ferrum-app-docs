@@ -252,7 +252,6 @@ input.doc-title:focus {
 }
 .doc-menu-sizes {
   min-width: 4.5rem;
-  max-height: min(20rem, 60dvh);
 }
 .doc-flyout {
   width: auto;
@@ -1819,6 +1818,8 @@ input.doc-title:focus {
 .doc-keys {
   display: grid;
   gap: 16px;
+  max-block-size: min(32rem, 60dvh);
+  overflow: auto;
 }
 @media (min-width: 640px) {
   .doc-keys {

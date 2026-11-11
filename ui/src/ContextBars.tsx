@@ -204,6 +204,7 @@ function CaptionButton({ editor, caption }: { editor: Editor; caption: string })
       <PopoverContent
         align="start"
         className="doc-flyout"
+        aria-label={t("Caption")}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           editor.commands.focus();

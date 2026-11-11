@@ -132,7 +132,7 @@ const TRIGGER = "doc-tool doc-drop";
 
 export function Drop({ label, value, keys, className = "", children, editor, content }: { label: string; value?: string; keys?: string; className?: string; children: ReactNode; editor: Editor; content: ReactNode }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <Tip label={label} keys={keys}>
         <DropdownMenuTrigger asChild>
           <button type="button" className={`${TRIGGER} ${className}`} aria-label={value ? t("{label}: {value}", { label, value }) : label} onMouseDown={(e) => e.preventDefault()}>
@@ -174,6 +174,7 @@ export function ColorButton({ editor, label, kind, icon: I, current, noneLabel, 
       <PopoverContent
         align="start"
         className="doc-flyout"
+        aria-label={label}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           editor.commands.focus();
@@ -237,7 +238,7 @@ function SizeControl({ editor, size }: { editor: Editor; size: number | null }) 
           }}
         />
       </Tip>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <Tip label={t("Sizes")}>
           <DropdownMenuTrigger asChild>
             <button type="button" className="doc-tool doc-size-list" aria-label={t("Sizes")} onMouseDown={(e) => e.preventDefault()}>
@@ -290,6 +291,7 @@ function TablePicker({ editor, active }: { editor: Editor; active: boolean }) {
       <PopoverContent
         align="start"
         className="doc-flyout"
+        aria-label={t("Insert a table")}
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           editor.commands.focus();
@@ -764,7 +766,7 @@ export function Toolbar({
                 </button>
               </PopoverTrigger>
             </Tip>
-            <PopoverContent align="end" className="doc-flyout doc-more-pop" {...closeToText}>
+            <PopoverContent align="end" className="doc-flyout doc-more-pop" aria-label={t("More formatting")} {...closeToText}>
               {waiting.map((g) => (
                 <div key={g.id} className="doc-group">
                   {g.node}

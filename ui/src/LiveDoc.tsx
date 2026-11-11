@@ -488,7 +488,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     save: saveKey,
     help: () => setHelping(true),
     bar: () => {
-      const target = document.querySelector<HTMLElement>(".doc-float button:not(:disabled), .doc-float input") ?? document.querySelector<HTMLElement>('.doc-toolbar [tabindex="0"]');
+      const target = document.querySelector<HTMLElement>(".doc-float:not(.doc-region-bar) :is(button:not(:disabled), input)") ?? document.querySelector<HTMLElement>('.doc-toolbar [tabindex="0"]');
       target?.focus();
     },
   } as PageActions;
@@ -654,7 +654,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}
         onKeyDown={(e) => {
           const el = e.target as HTMLElement;
-          if (e.key !== "Escape" || e.defaultPrevented || !editor || el.closest("[role=menu], [role=dialog], .doc-body, .ProseMirror") || !el.closest(".doc-float, .doc-rail, .doc-toc, .doc-region-pair")) return;
+          if (e.key !== "Escape" || !editor || el.closest("[role=menu], [role=dialog], .doc-body, .ProseMirror") || !el.closest(".doc-float, .doc-rail, .doc-toc, .doc-region-pair")) return;
           e.preventDefault();
           editor.commands.focus();
         }}
@@ -753,7 +753,13 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       )}
       {helping && (
         <Suspense fallback={null}>
-          <ShortcutHelp onClose={() => setHelping(false)} />
+          <ShortcutHelp
+            onClose={() => {
+              setHelping(false);
+              // Back to the text, where the list was asked for.
+              requestAnimationFrame(() => current.current?.commands.focus());
+            }}
+          />
         </Suspense>
       )}
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}
@@ -839,6 +845,9 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
   };
   if (!canRename) return <h1 className="doc-title doc-title-static">{isolate(docTitle(name))}</h1>;
   return (
+    <>
+    {/* The page's heading for screen readers; the name itself is the field beside it. */}
+    <h1 className="sr-only">{isolate(docTitle(name))}</h1>
     <input
       id="doc-title-input"
       className="doc-title"
@@ -856,6 +865,7 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
         }
       }}
     />
+    </>
   );
 }
 
