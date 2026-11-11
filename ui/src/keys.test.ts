@@ -34,7 +34,7 @@ describe("the shortcut table", () => {
 
   it("binds every text key of the table in the editor, above the extensions' own", () => {
     const page = { link: vi.fn(), find: vi.fn(), replace: vi.fn(), comment: vi.fn(), save: vi.fn(), help: vi.fn() };
-    const e = new Editor({ extensions: [...documentExtensions("f"), DocKeys.configure({ page: { current: page } })], content: "<p>Ship on Friday</p>" });
+    const e = new Editor({ extensions: [...documentExtensions("f"), DocKeys.configure({ page: () => page })], content: "<p>Ship on Friday</p>" });
     e.commands.setTextSelection({ from: 1, to: 5 });
     expect(e.commands.keyboardShortcut("Mod-k")).toBe(true);
     expect(e.commands.keyboardShortcut("Mod-Shift-k")).toBe(true);

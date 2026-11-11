@@ -206,7 +206,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         Suggestions.configure({ onRefused: (why) => toast(refusalText(why)), onTracked: () => tracked.current() }),
         Find,
         CharacterCount,
-        DocKeys.configure({ page: pageKeys }),
+        DocKeys.configure({ page: () => pageKeys.current }),
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
         // Bound to the shared text only once it is known to be readable (compat.ts): binding is what projects it.
         ...(ready
