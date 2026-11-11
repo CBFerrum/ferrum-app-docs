@@ -871,8 +871,12 @@ input.doc-title:focus {
 .doc-body [data-formatted]:dir(rtl) {
   box-shadow: 8px 0 0 -6px var(--success);
 }
+.doc-proposals-head {
+  flex-wrap: wrap;
+}
 .doc-proposals-who {
-  max-inline-size: 10rem;
+  flex: 1 1 8rem;
+  max-inline-size: 12rem;
 }
 .doc-toolbar.is-suggesting {
   box-shadow: inset 0 -2px 0 var(--success);

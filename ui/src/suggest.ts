@@ -75,11 +75,13 @@ const REFUSED: Record<string, Refusal> = {
   pageField: "block",
 };
 
+// Drawn as data-* attributes by each mark itself, never as plain ones (an `id` attribute would repeat on the page).
+const hidden = { renderHTML: () => ({}) };
 const whoAttrs = {
-  id: { default: null },
-  user: { default: null },
-  name: { default: "" },
-  at: { default: null },
+  id: { default: null, ...hidden },
+  user: { default: null, ...hidden },
+  name: { default: "", ...hidden },
+  at: { default: null, ...hidden },
 };
 
 /** A `Who` read from the shared document, or null for anything else (another client may write anything). */
@@ -121,7 +123,7 @@ export const Deletion = suggestionMark("deletion", "del");
 export const FormatChange = Mark.create({
   name: "formatChange",
   inclusive: false,
-  addAttributes: () => ({ ...whoAttrs, before: { default: null } }),
+  addAttributes: () => ({ ...whoAttrs, before: { default: null, ...hidden } }),
   parseHTML: () => [],
   renderHTML: ({ mark }) => ["span", { class: "doc-fmt", "data-suggestion": mark.attrs.id, title: t("Formatting suggested by {name}", { name: String(mark.attrs.name || t("someone")) }) }, 0],
 });
@@ -307,7 +309,7 @@ function markChanges(before: readonly PMMark[], now: readonly PMMark[], out: Set
     if (a && b && same(a.attrs, b.attrs)) continue;
     if (n === "textStyle") {
       for (const k of ["color", "fontSize", "fontFamily"]) if (!same(a?.attrs[k], b?.attrs[k])) out.add(k);
-    } else out.add(n);
+    } else out.add(a && !b ? `-${n}` : n);
   }
 }
 

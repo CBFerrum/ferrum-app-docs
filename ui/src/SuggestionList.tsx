@@ -11,6 +11,7 @@ import { type Suggestion, settle } from "./suggest";
 
 /** The words for what a format suggestion changed (suggest.ts `formats`). */
 export function formatLabel(key: string): string {
+  if (key.startsWith("-")) return t("{what} removed", { what: formatLabel(key.slice(1)) });
   const heading = /^type:heading:(\d)$/.exec(key);
   if (heading) return t("Heading {level}", { level: Number(heading[1]) });
   const words: Record<string, () => string> = {

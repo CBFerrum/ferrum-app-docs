@@ -101,18 +101,19 @@ export function pageKey(e: KeyboardEvent): Shortcut | null {
 }
 
 /** The text's shortcuts, from the table. Above the extensions' own (a shortcut the table names is its). */
-export const DocKeys = Extension.create<{ page: { current: PageActions } }>({
+// `page` is a function: TipTap copies an extension's options when it is configured, so an object would be the first one forever.
+export const DocKeys = Extension.create<{ page: () => PageActions }>({
   name: "docKeys",
   priority: 1000,
   addOptions() {
     const none = () => undefined;
-    return { page: { current: { link: none, find: none, replace: none, comment: none, save: none, help: none } } };
+    return { page: () => ({ link: none, find: none, replace: none, comment: none, save: none, help: none }) };
   },
   addKeyboardShortcuts() {
     const out: Record<string, () => boolean> = {};
     for (const s of SHORTCUTS) {
       if (s.scope !== "text" || !s.run) continue;
-      for (const k of s.keys) out[k] = () => this.editor.isEditable && s.run!(this.editor, this.options.page.current);
+      for (const k of s.keys) out[k] = () => this.editor.isEditable && s.run!(this.editor, this.options.page());
     }
     return out;
   },
