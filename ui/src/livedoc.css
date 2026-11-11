@@ -1057,6 +1057,7 @@ input.doc-title:focus {
 .doc-tools.is-docked {
   position: fixed;
   inset-inline: 0;
+  top: auto;
   bottom: var(--dock-bottom, 0);
   z-index: 30;
   padding: 4px 8px;

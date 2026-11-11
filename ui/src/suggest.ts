@@ -20,7 +20,7 @@
 import { type Editor, Extension, Mark, mergeAttributes } from "@tiptap/core";
 import { Fragment, type MarkType, Mark as PMMark, type Node as PMNode, Slice } from "@tiptap/pm/model";
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
-import { AddMarkStep, AttrStep, RemoveMarkStep, ReplaceAroundStep, ReplaceStep, type Step, Transform } from "@tiptap/pm/transform";
+import { AddMarkStep, AttrStep, Mapping, RemoveMarkStep, ReplaceAroundStep, ReplaceStep, type Step, Transform } from "@tiptap/pm/transform";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import { t } from "@ferrum/client";
 
@@ -482,9 +482,25 @@ function suggest(trs: readonly Transaction[], before: EditorState, state: Editor
   const out = state.tr.setMeta(suggestKey, { applied: true });
   const steps = mine.flatMap((tr) => tr.steps.map((step, i) => ({ tr, step, i, doc: tr.docs[i]! })));
   const kinds = steps.map(({ step, doc }) => classify(step, doc));
+  // Undoing what cannot be suggested: each of this person's steps inverted, last first, and carried over whatever
+  // came after it (others' changes, a plugin's tidying in the same round), as ProseMirror's history rebases.
   const refuse = (why: Refusal) => {
-    for (const tr of [...mine].reverse()) for (let i = tr.steps.length - 1; i >= 0; i--) out.step(tr.steps[i]!.invert(tr.docs[i]!));
-    return out.setMeta(suggestKey, { applied: true, refused: why });
+    // A transaction of its own: what was tracked so far (the check comes last) is not kept.
+    const back = state.tr;
+    const all = trs.flatMap((tr) => tr.steps.map((step, i) => ({ step, doc: tr.docs[i]!, mine: mine.includes(tr) })));
+    const firstMine = all.findIndex((x) => x.mine);
+    if (all.slice(firstMine).every((x) => x.mine)) {
+      // Nothing came between: each step's inverse applies exactly.
+      for (const tr of [...mine].reverse()) for (let i = tr.steps.length - 1; i >= 0; i--) back.step(tr.steps[i]!.invert(tr.docs[i]!));
+      return back.setMeta(suggestKey, { applied: true, refused: why });
+    }
+    for (let k = all.length - 1; k >= 0; k--) {
+      if (!all[k]!.mine) continue;
+      const over = new Mapping([...all.slice(k + 1).map((x) => x.step.getMap()), ...back.mapping.maps]);
+      const undo = all[k]!.step.invert(all[k]!.doc).map(over);
+      if (undo) back.maybeStep(undo);
+    }
+    return back.setMeta(suggestKey, { applied: true, refused: why });
   };
   const bad = kinds.find((k): k is Refusal => k !== "words" && k !== "blocks" && k !== "marks" && k !== "markup");
   if (bad) return refuse(bad);
