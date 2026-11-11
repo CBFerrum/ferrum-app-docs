@@ -8,7 +8,7 @@ import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Link, Outlet, RouterProvider, useRouteError } from "react-router";
 import { addCatalogs, routeBase, shell, t, wordsReady } from "@ferrum/client";
-import { ConfirmHost, EmptyState, ErrorState, Toaster } from "@ferrum/kit";
+import { ConfirmHost, ListSkeleton, StatePanel, Toaster } from "@ferrum/kit";
 import { DocsPage, NewDocument } from "./Docs";
 import "./styles.css";
 
@@ -29,14 +29,12 @@ function Frame() {
 }
 
 function RouteError() {
-  return <ErrorState error={useRouteError()} onRetry={() => window.location.reload()} />;
+  return <StatePanel kind="failed" error={useRouteError()} onRetry={() => window.location.reload()} />;
 }
 
 function NotFound() {
   return (
-    <EmptyState title={t("Page not found")}>
-      <Link to="/">{t("Go to Docs")}</Link>
-    </EmptyState>
+    <StatePanel kind="empty" title={t("Page not found")} action={<Link to="/">{t("Go to Docs")}</Link>} />
   );
 }
 
@@ -47,7 +45,7 @@ const router = createBrowserRouter(
       element: <Frame />,
       errorElement: <RouteError />,
       // A first page that loads its code later shows nothing meanwhile (the bar is there already).
-      hydrateFallbackElement: <span />,
+      hydrateFallbackElement: <ListSkeleton rows={6} />,
       children: [
         { index: true, element: <DocsPage /> },
         { path: "new", element: <NewDocument /> },
