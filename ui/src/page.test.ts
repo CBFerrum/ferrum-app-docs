@@ -7,7 +7,7 @@ import { columnOf } from "./layout";
 import { cleanHref, headingByAnchor, targetOf } from "./links";
 import { LEGACY, PRESETS, cleanSetup, dims, formatLength, isUnset, paperFor, parseLength, presetOf, readSetup, unitFor, watchSetup, writeSetup } from "./page";
 import { boxContent, cssString, linesOf, printStyle } from "./print";
-import { FORMAT, readFormat } from "./compat";
+import { readFormat } from "./compat";
 
 describe("the page setup", () => {
   it("is the legacy A4 with 2 cm margins until somebody sets it", () => {
@@ -24,7 +24,7 @@ describe("the page setup", () => {
     writeSetup(a, { size: "Letter", orientation: "landscape", ...PRESETS.narrow, differentFirst: true });
     expect(readSetup(b)).toMatchObject({ size: "Letter", orientation: "landscape", top: 720, differentFirst: true });
     expect(seen.at(-1)).toBe("Letter landscape");
-    expect(readFormat(b)).toBe(FORMAT);
+    expect(readFormat(b)).toBe(2);
   });
   it("is checked when read: a hostile map gives bounded values", () => {
     const s = cleanSetup({ size: "<script>", orientation: "sideways", top: -5, right: 1e9, bottom: "99999", left: "abc", differentFirst: "yes" });

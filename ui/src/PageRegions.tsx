@@ -35,7 +35,7 @@ export function PageRegion({ doc, name, editable, setup }: { doc: Y.Doc; name: R
       editable,
       extensions: [...regionExtensions(), Placeholder.configure({ placeholder: label }), Collaboration.configure({ document: doc, field: name })],
       editorProps: { attributes: { "aria-label": label, spellcheck: "true" } },
-      onUpdate: ({ editor: e }) => e.isEmpty || stamp(doc),
+      onUpdate: ({ editor: e }) => e.isEmpty || stamp(doc, 2),
       onFocus: () => setFocused(true),
       onBlur: ({ event }) => {
         // Pressing a button of the region's own bar leaves the text but not the region.

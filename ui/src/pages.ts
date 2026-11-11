@@ -15,7 +15,7 @@ import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import { t } from "@ferrum/client";
 import { headingsOf } from "./outline";
-import { suggestingRefuses } from "./suggest";
+import { suggestKey, suggestingRefuses } from "./suggest";
 
 const ID = /^[a-z0-9]{6,24}$/i;
 /** A short random id for a footnote or a heading anchor. */
@@ -315,7 +315,8 @@ export function settleNotes(state: EditorState): Transaction | null {
   // The text always ends in a paragraph to type in (the editor's own trailing node cannot know the notes follow).
   const last = tail > 0 ? doc.resolve(tail).nodeBefore : null;
   if (last && last.type.name !== "paragraph") tr.insert(tail, schema.nodes.paragraph!.create());
-  return tr.docChanged ? tr : null;
+  // Keeping the notes in step is not anyone's proposal: suggesting does not track it.
+  return tr.docChanged ? tr.setMeta(suggestKey, { applied: true }) : null;
 }
 
 /** Notes: keeps bodies and references in step (for changes made here: others' changes arrive already

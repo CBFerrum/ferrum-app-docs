@@ -29,7 +29,7 @@ import { remember, remembered } from "./local";
 import { ColumnResize } from "./format";
 import { PasteTidy, hasForeignImages, hasWords, localizeImages } from "./paste";
 import { Toolbar } from "./Toolbar";
-import { type Compat, FORMAT, checkFormat, readFormat, stamp, usesNewer } from "./compat";
+import { type Compat, checkFormat, formatOf, readFormat, stamp } from "./compat";
 import { NewerFormat } from "./NewerFormat";
 import { LinkCard, LinkPanel } from "./LinkTools";
 import { PageRegion } from "./PageRegions";
@@ -46,7 +46,7 @@ import { EditorMenus, type MenuApi, NO_MENU, useMentionNotices } from "./EditorM
 import { usePresence } from "./presence";
 import { documentExtensions } from "./schema";
 import { Tips } from "./Tool";
-import { Suggestions, setSuggesting, suggestionsIn } from "./suggest";
+import { Suggestions, refusalText, setSuggesting, suggestionsIn } from "./suggest";
 import "./livedoc.css";
 
 // The page setup dialog is loaded when somebody opens it.
@@ -152,6 +152,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const title = docTitle(info.name);
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
+  // A suggested paragraph or formatting change needs format 3 at once: a format 2 client would read it as a real change.
+  const tracked = useRef(() => undefined as void);
+  tracked.current = () => stamp(session.doc, 3);
   // Whether the paste that is coming is the words alone (Ctrl or ⌘ Shift V).
   const plain = useRef(false);
   // Comments on the text: one being written, and the thread in view (a click in its text shows it).
@@ -193,7 +196,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         ColumnResize,
         Placeholder.configure({ placeholder: t("Type / for blocks and @ to mention someone, or just start writing") }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
-        Suggestions.configure({ onRefused: () => toast(t("While suggesting, only words change: switch to Editing to change formatting or structure")) }),
+        Suggestions.configure({ onRefused: (why) => toast(refusalText(why)), onTracked: () => tracked.current() }),
         Find,
         CharacterCount,
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
@@ -327,7 +330,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => !editor.isDestroyed && readFormat(session.doc) < FORMAT && usesNewer(editor.state.doc) && stamp(session.doc), 1000);
+      timer = setTimeout(() => {
+        if (editor.isDestroyed) return;
+        const n = formatOf(editor.state.doc);
+        if (readFormat(session.doc) < n) stamp(session.doc, n);
+      }, 1000);
     };
     editor.on("update", check);
     check();
