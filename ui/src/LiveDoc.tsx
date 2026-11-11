@@ -752,7 +752,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </Suspense>
       )}
       {helping && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ReaderSkeleton />}>
           <ShortcutHelp
             onClose={() => {
               setHelping(false);

@@ -7,7 +7,7 @@ import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDateTime, t as tr, isolate } from "@ferrum/client";
-import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
+import { Button, ListSkeleton, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
 import { suggestionsIn } from "./suggest";
@@ -165,7 +165,7 @@ export function CommentRail({
   return (
     <aside className="doc-rail" aria-label={tr("Comments and suggestions on the text")}>
       {proposals.length > 0 && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ListSkeleton rows={2} />}>
           <SuggestionList editor={editor} proposals={proposals} canEdit={canEdit} />
         </Suspense>
       )}
