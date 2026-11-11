@@ -50,6 +50,8 @@ const router = createBrowserRouter(
         { index: true, element: <DocsPage /> },
         { path: "new", element: <NewDocument /> },
         { path: "d/:file", lazy: () => import("./LiveDoc").then((m) => ({ Component: m.LiveDocPage })) },
+        // A Word file in Drive, opened as a live document beside it (Drive's "Open as a Ferrum document").
+        { path: "open/:file", lazy: () => import("./OpenWord").then((m) => ({ Component: m.OpenWordPage })) },
         { path: "d/:file/history", lazy: () => import("./History").then((m) => ({ Component: m.HistoryPage })) },
         { path: "*", element: <NotFound /> },
       ],

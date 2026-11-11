@@ -23,6 +23,7 @@ import { usePeople } from "@ferrum/records";
 import { type Range, compare } from "./compare";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { documentExtensions } from "./schema";
+import { viewPlugins } from "./pages";
 import { type Version, type Which, chosen, fileSize, parseAgainst, sideName, sides, summary } from "./versions";
 import { LoadFailed } from "./states";
 import "./livedoc.css";
@@ -64,7 +65,7 @@ function Page({ doc, marks, kind, at, label }: { doc: PMNode; marks: Range[]; ki
       doc,
       marks.filter((r) => r.to > r.from).map((r) => Decoration.inline(r.from, r.to, { class: `doc-diff doc-diff-${kind}` })),
     );
-    const v = new EditorView(el, { state: EditorState.create({ doc }), editable: () => false, attributes: { class: "doc-body" }, decorations: () => decorations });
+    const v = new EditorView(el, { state: EditorState.create({ doc, plugins: viewPlugins() }), editable: () => false, attributes: { class: "doc-body" }, decorations: () => decorations });
     view.current = v;
     return () => {
       v.destroy();

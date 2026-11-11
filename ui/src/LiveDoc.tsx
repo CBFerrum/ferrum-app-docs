@@ -7,91 +7,59 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Collaboration } from "@tiptap/extension-collaboration";
 import { CollaborationCaret } from "@tiptap/extension-collaboration-caret";
-import { Placeholder } from "@tiptap/extensions";
+import { CharacterCount, Placeholder } from "@tiptap/extensions";
+import { getSchema } from "@tiptap/core";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  ArrowLeft,
-  Bold,
-  Code,
-  Highlighter,
-  ImagePlus,
-  Italic,
-  Link2,
-  List,
-  ListChecks,
-  ListOrdered,
-  Minus,
-  Quote,
-  Redo2,
-  Search,
-  SquareCode,
-  Strikethrough,
-  TableOfContents,
-  Underline,
-  Undo2,
-} from "lucide-react";
-import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { ArrowLeft, TableOfContents } from "lucide-react";
+import { Search } from "lucide-react";
+import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, Suspense, lazy, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { ApiError, api, download, errorMessage, initials, openPrint, saveBlob, shell, t, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
+import { ApiError, api, errorMessage, initials, saveBlob, shell, t, isolate } from "@ferrum/client";
+import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, announce, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
-import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
 import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
 import { DocComments, anchorOf, textThreads } from "./comments";
 import { Contents } from "./Contents";
 import { Find } from "./find";
 import { FindBar } from "./FindBar";
-import { IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
+import { IMAGE_TYPES, imageFiles } from "./image";
+import { ContentsBar, DateBar, ImageBar, TableBar } from "./ContextBars";
+import { remember, remembered } from "./local";
+import { ColumnResize } from "./format";
+import { PasteTidy, hasForeignImages, hasWords, localizeImages } from "./paste";
+import { Toolbar } from "./Toolbar";
+import { type Compat, checkFormat, formatOf, readFormat, stamp } from "./compat";
+import { NewerFormat } from "./NewerFormat";
+import { LinkCard, LinkPanel } from "./LinkTools";
+import { PageRegion } from "./PageRegions";
+import { StatusBar } from "./StatusBar";
+import { dims, isUnset, paperFor, PRESETS, toPx, unitFor, writeSetup } from "./page";
+import { goTo, insertFootnoteAndJump } from "./pages";
+import { headingByAnchor, targetOf } from "./links";
+import { usePageLayout, usePageSetup, usePrintStyle } from "./usePages";
+import { addImages, uploadImage } from "./upload";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { openMention } from "./mention";
 import { Menus } from "./menus";
 import { EditorMenus, type MenuApi, NO_MENU, useMentionNotices } from "./EditorMenus";
 import { usePresence } from "./presence";
 import { documentExtensions } from "./schema";
-import { Sep, Tool } from "./Tool";
-import { Suggestions, setSuggesting, suggestionsIn } from "./suggest";
+import { Tips } from "./Tool";
+import { Suggestions, refusalText, setSuggesting, suggestionsIn } from "./suggest";
+import { DocKeys, type PageActions, pageKey } from "./keys";
+import { downloadExport, notCarriedField, tellNotCarried } from "./exporting";
 import "./livedoc.css";
+
+// The page setup dialog is loaded when somebody opens it.
+const PageDialog = lazy(() => import("./PageDialog"));
+// So is the list of keyboard shortcuts.
+const ShortcutHelp = lazy(() => import("./ShortcutHelp"));
+
+export { cleanHref } from "./links";
 
 /** Drive's panel of a file's comments and history (a contextual side panel of Drive). */
 const DETAILS_PANEL = "drive.details";
-
-/** Adds image files to the document: each goes up to Drive (the document keeps it), then into the
- *  text at the selection, in order. */
-async function addImages(editor: Editor, file: string, files: File[]) {
-  for (const f of files) {
-    if (f.size > MAX_IMAGE) {
-      toast(t("“{name}” is larger than 10 MB", { name: f.name }), "error");
-      continue;
-    }
-    try {
-      const up = await api.post<{ id: string; width: number; height: number }>(`/api/app/drive/files/${encodeURIComponent(file)}/images`, f);
-      editor.chain().focus().insertImage({ image: up.id, alt: "", width: up.width, height: up.height }).run();
-    } catch (e) {
-      toast(errorMessage(e), "error");
-    }
-  }
-}
-
-/** A small choice the browser remembers for this person (nothing where it refuses). */
-function remembered(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function remember(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // The choice just lasts until the page closes.
-  }
-}
 
 /** Whether a key was pressed in a field of the page other than the text and the find bar. */
 function inOtherField(target: EventTarget | null): boolean {
@@ -165,10 +133,37 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const canShare = useCanIntent("share", "file");
   const location = useLocation();
   const meta = useMetaIndex().data;
-  const editable = state.loaded && state.access === "write" && !state.closed;
+  // Whether this client can read what is stored (compat.ts): checked once the content has arrived and before
+  // the editor is bound to it, and again as others change it.
+  const schema = useMemo(() => getSchema(documentExtensions(file)), [file]);
+  const [recheck, setRecheck] = useState(0);
+  const compat: Compat = useMemo(() => (state.loaded ? checkFormat(session.doc, schema) : { ok: true }), [state.loaded, recheck, session.doc, schema]);
+  useEffect(() => {
+    if (!state.loaded) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const later = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => setRecheck((n) => n + 1), 600);
+    };
+    session.doc.on("update", later);
+    return () => {
+      clearTimeout(timer);
+      session.doc.off("update", later);
+    };
+  }, [state.loaded, session.doc]);
+  const ready = state.loaded && compat.ok;
+  const canWrite = ready && state.access === "write" && !state.closed;
   const title = docTitle(info.name);
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
+  // A suggested paragraph or formatting change needs format 3 at once: a format 2 client would read it as a real change.
+  // What the page does for the keys of keys.ts (filled below, once the page's functions exist).
+  const pageKeys = useRef<PageActions>({ link: () => undefined, find: () => undefined, replace: () => undefined, comment: () => undefined, save: () => undefined, help: () => undefined, bar: () => undefined });
+  const [helping, setHelping] = useState(false);
+  const tracked = useRef(() => undefined as void);
+  tracked.current = () => stamp(session.doc, 3);
+  // Whether the paste that is coming is the words alone (Ctrl or ⌘ Shift V).
+  const plain = useRef(false);
   // Comments on the text: one being written, and the thread in view (a click in its text shows it).
   const [draft, setDraft] = useState<Draft | null>(null);
   const [active, setActive] = useState<string | null>(null);
@@ -178,7 +173,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const [suggesting, setMode] = useState(false);
   // The menus at the caret open while the text takes typing; the open one answers for the keys.
   const typing = useRef(false);
-  typing.current = editable && !suggesting;
+  typing.current = canWrite && !suggesting;
   const menu = useRef<MenuApi>(NO_MENU);
   const listId = useId();
   // Pictures are chosen from one hidden field, by the toolbar and by the `/` menu.
@@ -189,30 +184,75 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const [finding, setFinding] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [findFocus, setFindFocus] = useState(0);
+  // Links: the panel (Ctrl or ⌘ K), and opening another document from a link.
+  const [linking, setLinking] = useState(false);
+  const openDoc = useRef<(id: string) => void>(() => undefined);
+  openDoc.current = (id) => navigate(`/d/${id}`);
+  const [paging, setPaging] = useState(false);
+  const setup = usePageSetup(session.doc);
+  const paper = useRef<HTMLDivElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const [room, setRoom] = useState(0);
+  const tools = useRef<HTMLDivElement>(null);
+  useKeyboardDock(tools);
 
-  const editor = useEditor(
+  const made = useEditor(
     {
       editable: false,
       extensions: [
         ...documentExtensions(file),
+        PasteTidy,
+        ColumnResize,
         Placeholder.configure({ placeholder: t("Type / for blocks and @ to mention someone, or just start writing") }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
-        Suggestions.configure({ onRefused: () => toast(t("While suggesting, only words change: switch to Editing to change formatting or structure")) }),
+        Suggestions.configure({ onRefused: (why) => toast(refusalText(why)), onTracked: () => tracked.current() }),
         Find,
+        CharacterCount,
+        DocKeys.configure({ page: () => pageKeys.current }),
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
-        Collaboration.configure({ document: session.doc, field: "default" }),
-        // ui-lint-allow raw-color: fallback for a collaborator's own (server-chosen) cursor colour
-        CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
+        // Bound to the shared text only once it is known to be readable (compat.ts): binding is what projects it.
+        ...(ready
+          ? [
+              Collaboration.configure({ document: session.doc, field: "default" }),
+              // ui-lint-allow raw-color: fallback for a collaborator's own (server-chosen) cursor colour
+              CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
+            ]
+          : []),
       ],
       editorProps: {
-        attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true" },
-        // Pictures pasted or dropped in go up to Drive and into the text.
-        handlePaste: (_view, event) => {
-          const images = imageFiles(event.clipboardData?.files);
-          if (!images.length || !current.current) return false;
-          event.preventDefault();
-          void addImages(current.current, file, images);
-          return true;
+        // `data-ferrum-keys`: the platform's bar leaves Ctrl or ⌘ K to the text (the link panel).
+        attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true", "data-ferrum-keys": "mod+k" },
+        // Ctrl or ⌘ with Shift and V pastes the words alone: the editor does that itself, so what follows
+        // (pictures in pasted text going up to Drive) stands aside. Every other key is in keys.ts.
+        handleDOMEvents: {
+          keydown: (_view, e) => {
+            plain.current = (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "v";
+            return false;
+          },
+        },
+        // Pictures pasted or dropped in go up to Drive and into the text; so do the pictures inside pasted
+        // Word or Google Docs text, in the places they were. Word and Excel send a picture of the text
+        // beside the text: the text wins.
+        handlePaste: (view, event) => {
+          const ed = current.current;
+          const data = event.clipboardData;
+          if (!ed || !data || plain.current) return false;
+          const html = data.getData("text/html");
+          const images = imageFiles(data.files);
+          if (images.length && !hasWords(html) && !data.getData("text/plain").trim()) {
+            event.preventDefault();
+            void addImages(ed, file, images);
+            return true;
+          }
+          if (html && hasForeignImages(html)) {
+            event.preventDefault();
+            void localizeImages(html, (f) => uploadImage(file, f)).then(({ html: kept, skipped }) => {
+              if (skipped) toast(skipped === 1 ? t("1 picture in what you pasted could not be added: add it to the document as a file") : t("{n} pictures in what you pasted could not be added: add them to the document as files", { n: skipped }), "info");
+              if (!view.isDestroyed) view.pasteHTML(kept);
+            });
+            return true;
+          }
+          return false;
         },
         handleDrop: (view, event, _slice, moved) => {
           const images = moved ? [] : imageFiles(event.dataTransfer?.files);
@@ -229,8 +269,14 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         handleClick: (view, _pos, event) => {
           const target = event.target as HTMLElement | null;
           const a = target?.closest("a[href]");
-          if (a && (event.metaKey || event.ctrlKey)) {
-            window.open(a.getAttribute("href") ?? "", "_blank", "noopener,noreferrer");
+          if (a && (event.metaKey || event.ctrlKey || !view.editable)) {
+            const href = a.getAttribute("href") ?? "";
+            const to = targetOf(href);
+            if (to.kind === "heading") {
+              const h = headingByAnchor(view.state.doc, to.anchor);
+              if (h) goTo(view, h.pos);
+            } else if (to.kind === "doc") openDoc.current(to.id);
+            else window.open(href, "_blank", "noopener,noreferrer");
             return true;
           }
           const m = target?.closest<HTMLElement>('[data-mention="record"]');
@@ -239,8 +285,12 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         },
       },
     },
-    [session],
+    [session, ready],
   );
+  // An editor made before the content could be read has no shared binding: nothing is editable until the bound one is made.
+  const bound = !!made && made.extensionManager.extensions.some((x) => x.name === "collaboration");
+  const editor = ready && !bound ? null : made;
+  const editable = canWrite && bound;
   useEffect(() => {
     current.current = editor;
   }, [editor]);
@@ -248,9 +298,57 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     if (editor && editor.isEditable !== editable) editor.setEditable(editable);
   }, [editor, editable]);
   useEffect(() => {
-    if (editor && state.me) editor.commands.updateUser({ name: state.me.name, color: state.me.color });
-  }, [editor, state.me]);
+    if (editor && ready && state.me) editor.commands.updateUser({ name: state.me.name, color: state.me.color });
+  }, [editor, ready, state.me]);
 
+  // The page: as wide as the paper where the screen has room, else as wide as the screen. A new empty document
+  // takes its person's usual paper (Letter for en-US, A4 elsewhere) the first time an editor opens it; a document
+  // that never had a page keeps the A4 it has always been exported as.
+  useEffect(() => {
+    const el = paper.current;
+    if (!el) return;
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      setRoom(el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  useEffect(() => {
+    if (!editor || !editable || !state.loaded || !isUnset(session.doc) || session.doc.getXmlFragment("default").length > 0) return;
+    const lang = navigator.language || document.documentElement.lang || "en";
+    writeSetup(session.doc, { size: paperFor(lang), orientation: "portrait", ...PRESETS.normal, differentFirst: false });
+  }, [editor, editable, state.loaded, session.doc]);
+  const [pageW, pageH] = dims(setup).map(toPx) as [number, number];
+  const real = room >= pageW;
+  const printNow = usePrintStyle(session.doc, setup, title);
+  const layout = usePageLayout(editor, sheet, setup, real, ready);
+  // Which of a different first page's pair is shown: the top is page 1; the end is page 1 only in a one-page document.
+  const [topFirst, setTopFirst] = useState(true);
+  const [bottomPick, setBottomFirst] = useState<boolean | null>(null);
+  const bottomFirst = bottomPick ?? (layout?.pages ?? 1) <= 1;
+  // The first use of a format 2 feature raises the document's recorded format (compat.ts).
+  useEffect(() => {
+    if (!editor || !editable) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        if (editor.isDestroyed) return;
+        const n = formatOf(editor.state.doc);
+        if (readFormat(session.doc) < n) stamp(session.doc, n);
+      }, 1000);
+    };
+    editor.on("update", check);
+    check();
+    return () => {
+      clearTimeout(timer);
+      editor.off("update", check);
+    };
+  }, [editor, editable, session.doc]);
+  const unit = unitFor(navigator.language || document.documentElement.lang || "en");
   // Drive's lists show who has the file open.
   usePresence(file, state.loaded ? (state.access === "write" ? "edit" : "view") : null);
 
@@ -271,39 +369,33 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [state.unsaved, session.keeps]);
+  // The page's keys (keys.ts): find and replace stay the browser's while the person types in another field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === "KeyM") {
-        e.preventDefault();
-        startRef.current();
-        return;
-      }
-      // Ctrl+F finds, and Ctrl+H (⌘⇧H on a Mac, where ⌘H hides the app) replaces, unless the person is
-      // typing in some other field of the page: then the browser's own find stays theirs.
-      const key = e.key.toLowerCase();
-      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-      const wantsFind = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && key === "f";
-      const wantsReplace = mac ? e.metaKey && e.shiftKey && !e.altKey && key === "h" : e.ctrlKey && !e.altKey && !e.shiftKey && key === "h";
-      if ((wantsFind || wantsReplace) && !inOtherField(e.target)) {
-        e.preventDefault();
-        findRef.current(wantsReplace);
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        toast(state.unsaved ? t("Saving: changes are saved as you type") : t("Saved: changes are saved as you type"));
-      }
+      const k = pageKey(e);
+      if (!k || ((k.id === "find" || k.id === "replace") && inOtherField(e.target))) return;
+      e.preventDefault();
+      k.run?.(current.current as Editor, pageKeys.current);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.unsaved]);
+  }, []);
+  /** Ctrl or ⌘ S: said once, quietly, then only to screen readers. */
+  const savedOnce = useRef(false);
+  const saveKey = () => {
+    const text = state.unsaved ? t("Saving: Docs saves as you type") : t("Saved: Docs saves as you type");
+    if (savedOnce.current) return announce(text);
+    savedOnce.current = true;
+    toast(text, "info");
+  };
 
   const act = (action: string, body: Record<string, unknown>) => api.post<{ id: string; mentioned?: string[] }>(`/api/v1/DriveSpace/${space.data?.id}/actions/${action}`, body);
   const content = `/api/app/drive/files/${file}/content`;
   const exportAs = async (format: "html" | "pdf" | "docx" | "txt") => {
     try {
-      await download(content, `${title}.${format}`, { format });
+      const lost = await downloadExport(content, `${title}.${format}`, { format });
       if (format === "txt") suggestionsNote();
+      tellNotCarried(format, lost);
     } catch (e) {
       toast(errorMessage(e), "error");
     }
@@ -314,11 +406,23 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   const exportMarkdown = async () => {
     try {
-      const r = await api.get<{ content: string }>("/api/app/drive/read_document", { file, format: "markdown" });
+      const r = await api.get<{ content: string; not_carried?: unknown }>("/api/app/drive/read_document", { file, format: "markdown" });
       saveBlob(new Blob([r.content], { type: "text/markdown;charset=utf-8" }), `${title}.md`);
       suggestionsNote();
+      tellNotCarried("md", notCarriedField(r.not_carried));
     } catch (e) {
       toast(errorMessage(e), "error");
+    }
+  };
+  /** Paste what the clipboard holds as plain words (the menu's own way; the keys are Ctrl or ⌘ Shift V). */
+  const pastePlain = async () => {
+    try {
+      const words = await navigator.clipboard.readText();
+      if (!words || !current.current) return;
+      current.current.commands.focus();
+      current.current.view.pasteText(words);
+    } catch {
+      toast(t("The browser did not allow reading the clipboard: press Ctrl+Shift+V (⌘⇧V on a Mac) to paste without formatting"), "info");
     }
   };
   const copy = async () => {
@@ -331,6 +435,19 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     }
   };
   const canEdit = allows(info.permission, "Edit");
+  /** To Drive's trash, with Undo; the person goes back to Docs. */
+  const trash = async () => {
+    try {
+      await act("trash", { item: file });
+      void qc.invalidateQueries({ queryKey: ["docs"] });
+      toast(t("“{name}” moved to the trash", { name: title }), "success", {
+        action: { label: t("Undo"), onSelect: () => void act("restore", { item: file }).then(() => qc.invalidateQueries({ queryKey: ["docs"] }), (e: unknown) => toast(errorMessage(e), "error")) },
+      });
+      navigate("/");
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    }
+  };
   const canComment = allows(info.permission, "Comment") && !!space.data;
   const account = useMe().data;
   // People picked from `@` are told, by a comment, when they are still mentioned a few seconds on.
@@ -357,16 +474,24 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     setActive(null);
     setDraft(a);
   };
-  const startRef = useRef(startComment);
-  startRef.current = startComment;
   /** Opens find (and, when asked and allowed, replace), and puts the caret in its field. */
   const openFind = (withReplace: boolean) => {
     setFinding(true);
     setReplacing(withReplace && editable);
     setFindFocus((n) => n + 1);
   };
-  const findRef = useRef(openFind);
-  findRef.current = openFind;
+  pageKeys.current = {
+    link: () => editable && setLinking(true),
+    find: () => openFind(false),
+    replace: () => openFind(true),
+    comment: startComment,
+    save: saveKey,
+    help: () => setHelping(true),
+    bar: () => {
+      const target = document.querySelector<HTMLElement>(".doc-float:not(.doc-region-bar) :is(button:not(:disabled), input)") ?? document.querySelector<HTMLElement>('.doc-toolbar [tabindex="0"]');
+      target?.focus();
+    },
+  } as PageActions;
   const showContents = (on: boolean) => {
     setContents(on);
     remember("docs.contents", on ? "1" : "0");
@@ -397,6 +522,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
 
   return (
+    <Tips>
     <div className="doc-page">
       <header className="doc-bar">
         {fromDocs ? (
@@ -409,7 +535,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           </a>
         )}
         <Title name={info.name} canRename={canEdit && !!space.data} rename={(name) => act("rename", { item: file, name }).then(() => qc.invalidateQueries({ queryKey: ["drive"] }))} />
-        {saveState(state, session.keeps) ? (
+        {!compat.ok ? (
+          <span className="doc-status" role="status">
+            {t("Read only: newer format")}
+          </span>
+        ) : saveState(state, session.keeps) ? (
           <span title={statusText(state, session.keeps)}>
             <SaveStatus state={saveState(state, session.keeps)!} />
           </span>
@@ -440,6 +570,53 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           <Button size="sm" aria-pressed={details} onClick={() => void toggleDetails()}>
             {t("Comments and history")}
           </Button>
+          {editor && editable && (
+            <Menu label={t("Edit")} ariaLabel={t("Edit menu")} buttonClass="btn btn-default btn-sm">
+              {(close) => {
+                const item = (run: () => unknown) => () => {
+                  close();
+                  void run();
+                };
+                return (
+                  <>
+                    <MenuItem onSelect={item(() => editor.chain().focus().undo().run())}>{t("Undo")}</MenuItem>
+                    <MenuItem onSelect={item(() => editor.chain().focus().redo().run())}>{t("Redo")}</MenuItem>
+                    <MenuItem onSelect={item(() => (editor.commands.focus(), document.execCommand("cut")))}>{t("Cut")}</MenuItem>
+                    <MenuItem onSelect={item(() => (editor.commands.focus(), document.execCommand("copy")))}>{t("Copy")}</MenuItem>
+                    <MenuItem onSelect={item(pastePlain)}>{t("Paste without formatting")}</MenuItem>
+                    <MenuItem onSelect={item(() => editor.chain().focus().selectAll().run())}>{t("Select all")}</MenuItem>
+                    <MenuItem onSelect={item(() => openFind(false))}>{t("Find")}</MenuItem>
+                    <MenuItem onSelect={item(() => openFind(true))}>{t("Find and replace")}</MenuItem>
+                  </>
+                );
+              }}
+            </Menu>
+          )}
+          {editor && editable && (
+            <Menu label={t("Insert")} ariaLabel={t("Insert menu")} buttonClass="btn btn-default btn-sm">
+              {(close) => {
+                const item = (run: () => unknown) => () => {
+                  close();
+                  void run();
+                };
+                const run = () => editor.chain().focus();
+                return (
+                  <>
+                    <MenuItem onSelect={item(pickImages)}>{t("Image")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}>{t("Table")}</MenuItem>
+                    <MenuItem onSelect={item(() => setLinking(true))}>{t("Link")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertPageBreak().run())}>{t("Page break")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertContents().run())}>{t("Table of contents")}</MenuItem>
+                    <MenuItem onSelect={item(() => insertFootnoteAndJump(editor))}>{t("Footnote")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertDate().run())}>{t("Date")}</MenuItem>
+                    {/* The @ it types opens the menu of people (a person chip is a mention). */}
+                    <MenuItem onSelect={item(() => run().insertContent("@").run())}>{t("Person")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().setHorizontalRule().run())}>{t("Divider")}</MenuItem>
+                  </>
+                );
+              }}
+            </Menu>
+          )}
           <Menu label={t("File")} ariaLabel={t("File menu")} buttonClass="btn btn-default btn-sm">
             {(close) => {
               const item = (run: () => unknown) => () => {
@@ -453,10 +630,14 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                   <MenuItem onSelect={item(() => exportAs("docx"))}>{t("Download as Word (.docx)")}</MenuItem>
                   <MenuItem onSelect={item(() => exportAs("txt"))}>{t("Download as text (.txt)")}</MenuItem>
                   <MenuItem onSelect={item(exportMarkdown)}>{t("Download as Markdown (.md)")}</MenuItem>
-                  <MenuItem onSelect={item(() => openPrint(`${content}?format=html&inline=1`).catch((e: unknown) => toast(errorMessage(e), "error")))}>{t("Print")}</MenuItem>
+                  {editable && <MenuItem onSelect={item(() => setPaging(true))}>{t("Page setup…")}</MenuItem>}
+                  <MenuItem onSelect={item(() => (printNow(), window.print()))}>{t("Print")}</MenuItem>
                   <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>{t("Version history")}</MenuItem>
                   {space.data && info.parent && <MenuItem onSelect={item(copy)}>{t("Make a copy")}</MenuItem>}
+                  {canEdit && space.data && <MenuItem onSelect={item(() => document.getElementById("doc-title-input")?.focus())}>{t("Rename")}</MenuItem>}
+                  {canEdit && space.data && <MenuItem onSelect={item(trash)}>{t("Move to trash")}</MenuItem>}
                   {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>{t("Save as a template")}</MenuItem>}
+                  <MenuItem onSelect={item(() => setHelping(true))}>{t("Keyboard shortcuts")}</MenuItem>
                 </>
               );
             }}
@@ -464,17 +645,79 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </div>
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{isolate(state.error)}</Alert>}
-      <div className="doc-tools">
-        {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} />}
+      <div className="doc-tools" ref={tools}>
+        {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} onLink={() => setLinking(true)} />}
         {editor && finding && state.loaded && <FindBar editor={editor} canReplace={editable} replacing={replacing} setReplacing={setReplacing} focus={findFocus} onClose={() => setFinding(false)} />}
       </div>
-      <div className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
+      {/* Escape in a bar over the page, the comments or the contents goes back to the text (menus and dialogs close first). */}
+      <div
+        className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}
+        onKeyDown={(e) => {
+          const el = e.target as HTMLElement;
+          if (e.key !== "Escape" || !editor || el.closest("[role=menu], [role=dialog], .doc-body, .ProseMirror") || !el.closest(".doc-float, .doc-rail, .doc-toc, .doc-region-pair")) return;
+          e.preventDefault();
+          editor.commands.focus();
+        }}
+      >
         {editor && tocShown && <Contents editor={editor} onHide={() => showContents(false)} />}
-        <div className="doc-paper">
+        {!compat.ok ? (
+          <NewerFormat download={(f) => void exportAs(f)} />
+        ) : (
+        <div className="doc-paper" ref={paper}>
           {!state.loaded && !state.closed && <ReaderSkeleton />}
-          <EditorContent editor={editor} hidden={!state.loaded} />
+          <div
+            ref={sheet}
+            className="doc-sheet"
+            hidden={!state.loaded}
+            style={
+              {
+                "--sheet-w": real ? `${pageW}px` : "100%",
+                "--sheet-h": real ? `${pageH}px` : "60vh",
+                "--mt": `${real ? toPx(setup.top) : Math.min(toPx(setup.top), 48)}px`,
+                "--mb": `${real ? toPx(setup.bottom) : Math.min(toPx(setup.bottom), 48)}px`,
+                "--ml": `${real ? toPx(setup.left) : Math.min(toPx(setup.left), 24)}px`,
+                "--mr": `${real ? toPx(setup.right) : Math.min(toPx(setup.right), 24)}px`,
+              } as React.CSSProperties
+            }
+          >
+            {/* The header at the top is page 1's; the footer at the end, the last page's. With a different first page the
+                other of each pair is a switch away. */}
+            {ready && (
+              <PageRegion
+                key={setup.differentFirst && topFirst ? "firstHeader" : "header"}
+                doc={session.doc}
+                name={setup.differentFirst && topFirst ? "firstHeader" : "header"}
+                editable={editable && !suggesting}
+                setup={setup}
+                pair={setup.differentFirst ? { first: topFirst, set: setTopFirst } : undefined}
+              />
+            )}
+            <EditorContent className="doc-sheet-text" editor={editor} hidden={!state.loaded} />
+            {ready && (
+              <PageRegion
+                key={setup.differentFirst && bottomFirst ? "firstFooter" : "footer"}
+                doc={session.doc}
+                name={setup.differentFirst && bottomFirst ? "firstFooter" : "footer"}
+                editable={editable && !suggesting}
+                setup={setup}
+                pair={setup.differentFirst ? { first: bottomFirst, set: setBottomFirst } : undefined}
+              />
+            )}
+            {real && layout?.marks.map((m) => <div key={m.page} className="doc-pagemark" style={{ insetBlockStart: m.top }} data-label={t("Page {page}", { page: m.page })} aria-hidden />)}
+          </div>
           {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
+          {editor && editable && !suggesting && (
+            <>
+              <TableBar editor={editor} />
+              <ImageBar editor={editor} file={file} />
+              <DateBar editor={editor} />
+              <ContentsBar editor={editor} />
+            </>
+          )}
+          {editor && state.loaded && !linking && <LinkCard editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} editable={editable} edit={() => setLinking(true)} />}
+          {editor && linking && <LinkPanel editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} onClose={() => setLinking(false)} />}
         </div>
+        )}
         {editor && state.loaded && (
           <CommentRail
             editor={editor}
@@ -490,6 +733,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           />
         )}
       </div>
+      {editor && ready && <StatusBar editor={editor} pages={layout?.pages ?? null} setup={setup} />}
       <input
         ref={picker}
         type="file"
@@ -502,9 +746,54 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           addPictures(files);
         }}
       />
+      {paging && (
+        <Suspense fallback={<ReaderSkeleton />}>
+          <PageDialog doc={session.doc} setup={setup} unit={unit} onClose={() => setPaging(false)} />
+        </Suspense>
+      )}
+      {helping && (
+        <Suspense fallback={<ReaderSkeleton />}>
+          <ShortcutHelp
+            onClose={() => {
+              setHelping(false);
+              // Back to the text, where the list was asked for.
+              requestAnimationFrame(() => current.current?.commands.focus());
+            }}
+          />
+        </Suspense>
+      )}
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}
     </div>
+    </Tips>
   );
+}
+
+/** On a touch screen with the on-screen keyboard up (the visual viewport shorter than the window), the toolbar sits
+ *  just above the keyboard, where the thumb is, instead of at the top of a page the keyboard has pushed away. */
+function useKeyboardDock(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = ref.current;
+    if (!vv || !el || !window.matchMedia("(pointer: coarse)").matches) return;
+    const place = () => {
+      const typing = !!document.activeElement?.closest(".doc-body");
+      const keyboard = window.innerHeight - vv.height > 120;
+      el.classList.toggle("is-docked", typing && keyboard);
+      // Its bottom on the keyboard's top: the layout viewport's height less what the visual viewport shows.
+      if (typing && keyboard) el.style.setProperty("--dock-bottom", `${Math.max(0, Math.round(window.innerHeight - vv.offsetTop - vv.height))}px`);
+    };
+    vv.addEventListener("resize", place);
+    vv.addEventListener("scroll", place);
+    document.addEventListener("focusin", place);
+    document.addEventListener("focusout", place);
+    place();
+    return () => {
+      vv.removeEventListener("resize", place);
+      vv.removeEventListener("scroll", place);
+      document.removeEventListener("focusin", place);
+      document.removeEventListener("focusout", place);
+    };
+  }, [ref]);
 }
 
 /** Everyone else in the document now, one entry per person. */
@@ -556,12 +845,17 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
   };
   if (!canRename) return <h1 className="doc-title doc-title-static">{isolate(docTitle(name))}</h1>;
   return (
+    <>
+    {/* The page's heading for screen readers; the name itself is the field beside it. */}
+    <h1 className="sr-only">{isolate(docTitle(name))}</h1>
     <input
+      id="doc-title-input"
       className="doc-title"
       aria-label={t("Document name")}
       value={value}
       maxLength={240}
       onChange={(e) => setValue(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
       onBlur={() => void commit()}
       onKeyDown={(e: ReactKeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") e.currentTarget.blur();
@@ -571,260 +865,7 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
         }
       }}
     />
-  );
-}
-
-const STYLES = [
-  { id: "p", get label() { return t("Text"); } },
-  { id: "h1", get label() { return t("Heading 1"); } },
-  { id: "h2", get label() { return t("Heading 2"); } },
-  { id: "h3", get label() { return t("Heading 3"); } },
-] as const;
-
-function Toolbar({
-  editor,
-  pickImages,
-  adding,
-  suggesting,
-  setSuggesting: setMode,
-}: {
-  editor: Editor;
-  pickImages: () => void;
-  adding: boolean;
-  suggesting: boolean;
-  setSuggesting: (on: boolean) => void;
-}) {
-  const s = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      style: e.isActive("heading", { level: 1 }) ? "h1" : e.isActive("heading", { level: 2 }) ? "h2" : e.isActive("heading", { level: 3 }) ? "h3" : "p",
-      bold: e.isActive("bold"),
-      italic: e.isActive("italic"),
-      underline: e.isActive("underline"),
-      strike: e.isActive("strike"),
-      code: e.isActive("code"),
-      highlight: e.isActive("highlight"),
-      link: e.isActive("link"),
-      bullet: e.isActive("bulletList"),
-      ordered: e.isActive("orderedList"),
-      task: e.isActive("taskList"),
-      quote: e.isActive("blockquote"),
-      callout: e.isActive("blockquote") ? calloutKind(e.getAttributes("blockquote").callout) : null,
-      codeBlock: e.isActive("codeBlock"),
-      table: e.isActive("table"),
-      left: e.isActive({ textAlign: "left" }),
-      center: e.isActive({ textAlign: "center" }),
-      right: e.isActive({ textAlign: "right" }),
-      canUndo: e.can().undo(),
-      canRedo: e.can().redo(),
-      image: e.isActive("image"),
-    }),
-  });
-  const [linking, setLinking] = useState(false);
-  const [describing, setDescribing] = useState(false);
-  const run = () => editor.chain().focus();
-  return (
-    <div className={`doc-toolbar scroll-cue${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
-      <label className="sr-only" htmlFor="doc-mode">
-        {t("Mode")}
-      </label>
-      <select id="doc-mode" className="doc-style doc-mode" value={suggesting ? "suggest" : "edit"} onChange={(e) => setMode(e.target.value === "suggest")}>
-        <option value="edit">{t("Editing")}</option>
-        <option value="suggest">{t("Suggesting")}</option>
-      </select>
-      <Sep />
-      <Tool label={t("Undo")} icon={Undo2} disabled={!s.canUndo} onClick={() => run().undo().run()} />
-      <Tool label={t("Redo")} icon={Redo2} disabled={!s.canRedo} onClick={() => run().redo().run()} />
-      <Sep />
-      <label className="sr-only" htmlFor="doc-style">
-        {t("Paragraph style")}
-      </label>
-      <select
-        id="doc-style"
-        className="doc-style"
-        value={s.style}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === "p") run().setParagraph().run();
-          else run().setHeading({ level: Number(v.slice(1)) as 1 | 2 | 3 }).run();
-        }}
-      >
-        {STYLES.map((o) => (
-          <option key={o.id} value={o.id}>
-            {isolate(o.label)}
-          </option>
-        ))}
-      </select>
-      <Sep />
-      <Tool label={t("Bold")} icon={Bold} active={s.bold} onClick={() => run().toggleBold().run()} />
-      <Tool label={t("Italic")} icon={Italic} active={s.italic} onClick={() => run().toggleItalic().run()} />
-      <Tool label={t("Underline")} icon={Underline} active={s.underline} onClick={() => run().toggleUnderline().run()} />
-      <Tool label={t("Strikethrough")} icon={Strikethrough} active={s.strike} onClick={() => run().toggleStrike().run()} />
-      <Tool label={t("Highlight")} icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
-      <Tool label={t("Code")} icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
-      <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
-      <Tool label={adding ? t("Adding the image…") : t("Image")} icon={ImagePlus} disabled={adding} onClick={pickImages} />
-      {s.image && (
-        <button type="button" className="doc-tool doc-tool-text" onMouseDown={(e) => e.preventDefault()} onClick={() => setDescribing(true)}>
-          {t("Describe image")}
-        </button>
-      )}
-      <Sep />
-      <Tool label={t("Bulleted list")} icon={List} active={s.bullet} onClick={() => run().toggleBulletList().run()} />
-      <Tool label={t("Numbered list")} icon={ListOrdered} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
-      <Tool label={t("Checklist")} icon={ListChecks} active={s.task} onClick={() => run().toggleTaskList().run()} />
-      <Tool label={t("Quote")} icon={Quote} active={s.quote} onClick={() => run().toggleBlockquote().run()} />
-      {s.quote && (
-        <>
-          <label className="sr-only" htmlFor="doc-callout">
-            {t("Quote style")}
-          </label>
-          <select
-            id="doc-callout"
-            className="doc-style"
-            value={s.callout ?? ""}
-            onChange={(e) => {
-              const kind: CalloutKind | null = calloutKind(e.target.value);
-              if (kind) run().setCallout(kind).run();
-              else run().unsetCallout().run();
-            }}
-          >
-            <option value="">{t("Plain quote")}</option>
-            {CALLOUTS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {t("{label} callout", { label: c.label })}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
-      <Tool label={t("Code block")} icon={SquareCode} active={s.codeBlock} onClick={() => run().toggleCodeBlock().run()} />
-      <Tool label={t("Divider")} icon={Minus} onClick={() => run().setHorizontalRule().run()} />
-      <Sep />
-      <Tool label={t("Align left")} icon={AlignLeft} active={s.left} onClick={() => run().setTextAlign("left").run()} />
-      <Tool label={t("Center")} icon={AlignCenter} active={s.center} onClick={() => run().setTextAlign("center").run()} />
-      <Tool label={t("Align right")} icon={AlignRight} active={s.right} onClick={() => run().setTextAlign("right").run()} />
-      <Sep />
-      <Menu label={t(t("Table"))} ariaLabel={t("Table")} buttonClass="doc-tool doc-tool-text">
-        {(close) => {
-          const item = (go: () => boolean, label: string, needsTable = true) =>
-            (!needsTable || s.table) && (
-              <MenuItem
-                onSelect={() => {
-                  close();
-                  go();
-                }}
-              >
-                {isolate(label)}
-              </MenuItem>
-            );
-          return (
-            <>
-              {item(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), t("Insert a table"), false)}
-              {item(() => run().addRowAfter().run(), t("Add a row below"))}
-              {item(() => run().addColumnAfter().run(), t("Add a column to the right"))}
-              {item(() => run().deleteRow().run(), t("Delete the row"))}
-              {item(() => run().deleteColumn().run(), t("Delete the column"))}
-              {item(() => run().deleteTable().run(), t("Delete the table"))}
-            </>
-          );
-        }}
-      </Menu>
-      {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
-      {describing && <DescribeDialog editor={editor} onClose={() => setDescribing(false)} />}
-    </div>
-  );
-}
-
-/** What an image shows, for people who cannot see it (screen readers, and files that lose it). */
-function DescribeDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
-  const [alt, setAlt] = useState((editor.getAttributes("image").alt as string | undefined) ?? "");
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    editor.chain().focus().describeImage(alt).run();
-    onClose();
-  };
-  const footer: ReactNode = (
-    <>
-      <Button onClick={onClose}>{t("Cancel")}</Button>
-      <Button variant="primary" type="submit" form="doc-describe-form">
-        {t("Save")}
-      </Button>
     </>
-  );
-  return (
-    <Dialog open onClose={onClose} title={t("Describe the image")} footer={footer}>
-      <form id="doc-describe-form" onSubmit={save}>
-        <Field label={t("Description")} htmlFor="doc-describe-alt" hint={t("What it shows, in a sentence; leave empty for a decoration")}>
-          <input id="doc-describe-alt" className="input" value={alt} maxLength={300} onChange={(e) => setAlt(e.target.value)} data-autofocus />
-        </Field>
-      </form>
-    </Dialog>
-  );
-}
-
-/** The web and mail only: anything else a reader could not follow safely. */
-export function cleanHref(raw: string): string | null {
-  const href = raw.trim();
-  if (!href) return null;
-  if (/^(https?:|mailto:)/i.test(href)) return href;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return null;
-  return href.includes("@") && !href.includes("/") ? `mailto:${href}` : `https://${href}`;
-}
-
-function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
-  const current = (editor.getAttributes("link").href as string | undefined) ?? "";
-  const [href, setHref] = useState(current);
-  const [error, setError] = useState<string | null>(null);
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    const clean = cleanHref(href);
-    if (!href.trim()) {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return onClose();
-    }
-    if (!clean) return setError("Links go to web pages (https://…) or email addresses.");
-    editor.chain().focus().extendMarkRange("link").setLink({ href: clean }).run();
-    onClose();
-  };
-  const footer: ReactNode = (
-    <>
-      {current && (
-        <Button
-          variant="danger"
-          onClick={() => {
-            editor.chain().focus().extendMarkRange("link").unsetLink().run();
-            onClose();
-          }}
-        >
-          {t("Remove link")}
-        </Button>
-      )}
-      <Button onClick={onClose}>{t("Cancel")}</Button>
-      <Button variant="primary" type="submit" form="doc-link-form">
-        {t("Save")}
-      </Button>
-    </>
-  );
-  return (
-    <Dialog open onClose={onClose} title={current ? t("Edit link") : t("Add a link")} footer={footer}>
-      <form id="doc-link-form" onSubmit={save}>
-        <Field label={t("Address")} htmlFor="doc-link-href" error={error ?? undefined}>
-          <input
-            id="doc-link-href"
-            className="input"
-            type="text"
-            inputMode="url"
-            placeholder="https://example.com"
-            value={href}
-            aria-invalid={!!error || undefined}
-            aria-describedby={error ? "doc-link-href-error" : undefined}
-            onChange={(e) => setHref(e.target.value)}
-            data-autofocus
-          />
-        </Field>
-      </form>
-    </Dialog>
   );
 }
 
