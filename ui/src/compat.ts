@@ -62,7 +62,7 @@ export function usesNewer(doc: PMNode): boolean {
   let found = false;
   doc.descendants((n) => {
     if (found) return false;
-    if (NODES.has(n.type.name) || n.marks.some((m) => MARKS.has(m.type.name)) || n.attrs.lineHeight || n.attrs.indent || n.attrs.role || n.attrs.background) found = true;
+    if (NODES.has(n.type.name) || n.marks.some((m) => MARKS.has(m.type.name)) || n.attrs.lineHeight != null || n.attrs.indent != null || n.attrs.role != null || n.attrs.background != null || n.attrs.spaceBefore != null || n.attrs.spaceAfter != null || n.attrs.anchor != null || n.attrs.bullet != null) found = true;
     return !found;
   });
   return found;

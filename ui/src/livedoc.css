@@ -1326,6 +1326,9 @@ input.doc-title:focus {
   --ms: var(--mr, 96px);
   --me: var(--ml, 96px);
 }
+.doc-sheet[hidden] {
+  display: none;
+}
 .doc-sheet-text {
   flex: 1 1 auto;
   min-inline-size: 0;
@@ -1589,7 +1592,8 @@ input.doc-title:focus {
   align-items: center;
   gap: 4px;
   max-inline-size: min(28rem, calc(100% - 8px));
-  padding: 4px 4px 4px 10px;
+  padding: 4px;
+  padding-inline-start: 10px;
   color: var(--text);
   font-size: var(--text-sm);
   background: var(--surface);
