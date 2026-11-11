@@ -21,11 +21,13 @@ const OBJECT = "￼";
 
 /** Where `query` is in the text, in order, ignoring case unless asked. A match lies within one
  *  paragraph, across its marks. */
-export function findMatches(doc: PMNode, query: string, matchCase: boolean, limit = MAX_MATCHES + 1): Match[] {
+export function findMatches(doc: PMNode, query: string, matchCase: boolean, limit = MAX_MATCHES + 1, wholeWord = false): Match[] {
   if (!query) return [];
   let re: RegExp;
   try {
-    re = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), matchCase ? "gu" : "giu");
+    const body = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // A whole word has no letter, digit or underscore against it on either side.
+    re = new RegExp(wholeWord ? `(?<![\\p{L}\\p{N}_])${body}(?![\\p{L}\\p{N}_])` : body, matchCase ? "gu" : "giu");
   } catch {
     return [];
   }
@@ -59,6 +61,7 @@ export function findMatches(doc: PMNode, query: string, matchCase: boolean, limi
 export interface FindState {
   query: string;
   matchCase: boolean;
+  wholeWord: boolean;
   matches: Match[];
   /** The match the bar is on; -1 when there is none. */
   current: number;
@@ -72,6 +75,7 @@ export const findKey = new PluginKey<FindState>("docFind");
 interface Change {
   query?: string;
   matchCase?: boolean;
+  wholeWord?: boolean;
   /** Go to this match (wrapping round). */
   current?: number;
 }
@@ -92,13 +96,14 @@ export function findPlugin(): Plugin<FindState> {
   return new Plugin<FindState>({
     key: findKey,
     state: {
-      init: () => ({ query: "", matchCase: false, matches: [], current: -1, more: false, decos: DecorationSet.empty }),
+      init: () => ({ query: "", matchCase: false, wholeWord: false, matches: [], current: -1, more: false, decos: DecorationSet.empty }),
       apply(tr, before, _old, state) {
         const change = tr.getMeta(findKey) as Change | undefined;
         if (!change && !tr.docChanged) return before;
         const query = change?.query ?? before.query;
         const matchCase = change?.matchCase ?? before.matchCase;
-        const all = findMatches(state.doc, query, matchCase);
+        const wholeWord = change?.wholeWord ?? before.wholeWord;
+        const all = findMatches(state.doc, query, matchCase, MAX_MATCHES + 1, wholeWord);
         const matches = all.slice(0, MAX_MATCHES);
         let current: number;
         if (change?.current !== undefined) current = wrap(change.current, matches.length);
@@ -109,7 +114,7 @@ export function findPlugin(): Plugin<FindState> {
           const from = change ? state.selection.from : tr.mapping.map(before.matches[before.current]?.from ?? 0);
           current = Math.max(0, matches.findIndex((m) => m.from >= from));
         }
-        return { query, matchCase, matches, current, more: all.length > MAX_MATCHES, decos: marks(state.doc, matches, current) };
+        return { query, matchCase, wholeWord, matches, current, more: all.length > MAX_MATCHES, decos: marks(state.doc, matches, current) };
       },
     },
     props: { decorations: (state) => findKey.getState(state)?.decos ?? null },
@@ -127,7 +132,7 @@ export function replaceOne(state: EditorState, replacement: string): Transaction
 export function replaceAll(state: EditorState, replacement: string): Transaction | null {
   const st = findKey.getState(state);
   if (!st?.query) return null;
-  const all = findMatches(state.doc, st.query, st.matchCase, Infinity);
+  const all = findMatches(state.doc, st.query, st.matchCase, Infinity, st.wholeWord);
   if (!all.length) return null;
   const tr = state.tr;
   for (const m of all.reverse()) tr.insertText(replacement, m.from, m.to);

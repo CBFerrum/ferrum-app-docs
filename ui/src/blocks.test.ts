@@ -16,7 +16,7 @@ describe("the slash menu's blocks", () => {
     expect(ids("todo")).toEqual(["checklist"]);
     expect(ids("photo")).toEqual(["image"]);
     expect(ids("hr")).toEqual(["divider"]);
-    expect(ids("TABLE")).toEqual(["table"]);
+    expect(ids("TABLE")).toEqual(["table", "contents"]);
   });
 
   it("puts a title that starts with the words before one that only mentions them", () => {

@@ -7,14 +7,15 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
-import { AtSign, Calendar, FileText, Heading1, Heading2, Heading3, Info, ImagePlus, Lightbulb, List, ListChecks, ListOrdered, Minus, OctagonAlert, Pilcrow, Quote, SquareCode, Table, TriangleAlert, type LucideIcon } from "lucide-react";
+import { AtSign, Calendar, FileText, Footprints, Heading1, Heading2, Heading3, Info, ImagePlus, Lightbulb, List, ListChecks, ListOrdered, Minus, OctagonAlert, Pilcrow, Quote, SquareCode, Table, TableOfContents, TriangleAlert, type LucideIcon } from "lucide-react";
 import { type CSSProperties, type MutableRefObject, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { api, errorMessage, formatMoment, initials, t, isolate } from "@ferrum/client";
+import { api, errorMessage, initials, t, isolate } from "@ferrum/client";
 import { toast, useDebounced } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Block, type BlockId, findBlocks } from "./blocks";
 import { type CalloutKind } from "./callout";
 import { docTitle } from "./livedocs";
+import { insertFootnoteAndJump } from "./pages";
 import { type Pending, contextOf, findPeople, mentionLabel, mentionsIn, noticeBody, planNotices } from "./mention";
 import { type Trigger, menuKey } from "./menus";
 
@@ -43,6 +44,9 @@ const ICONS: Record<BlockId, LucideIcon> = {
   alert: OctagonAlert,
   image: ImagePlus,
   divider: Minus,
+  pagebreak: FileText,
+  contents: TableOfContents,
+  footnote: Footprints,
   date: Calendar,
   mention: AtSign,
 };
@@ -76,11 +80,19 @@ export function runBlock(editor: Editor, id: BlockId, range: { from: number; to:
       return chain().setCallout(id as CalloutKind).run();
     case "divider":
       return chain().setHorizontalRule().run();
+    case "pagebreak":
+      return chain().insertPageBreak().run();
+    case "contents":
+      return chain().insertContents().run();
+    case "footnote": {
+      chain().run();
+      return void insertFootnoteAndJump(editor);
+    }
     case "image":
       chain().run();
       return pickImages();
     case "date":
-      return chain().insertContent(formatMoment(new Date(), { dateStyle: "long" })).run();
+      return chain().insertDate().run();
     case "mention":
       // The @ it types opens the menu of people and records.
       return chain().insertContent("@").run();

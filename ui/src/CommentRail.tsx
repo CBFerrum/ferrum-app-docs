@@ -5,12 +5,15 @@
 
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDateTime, t as tr, isolate } from "@ferrum/client";
-import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
+import { Button, ListSkeleton, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
 import { type Anchor, type DriveComment, type Thread, commentsKey, rangeOf, textThreads } from "./comments";
-import { type Suggestion, settle, suggestionsIn } from "./suggest";
+import { suggestionsIn } from "./suggest";
+
+// The list of suggestions is loaded when a document has some.
+const SuggestionList = lazy(() => import("./SuggestionList"));
 
 type Act = (action: string, params: Record<string, unknown>) => Promise<{ id?: string }>;
 
@@ -54,6 +57,11 @@ export function CommentRail({
 }) {
   const qc = useQueryClient();
   const q = useQuery(commentsQuery(file));
+  // A new comment takes the keyboard at once (Ctrl+Alt+M, or the Comment button), as Google Docs does.
+  const draftBox = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (draft) draftBox.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+  }, [draft]);
   const people = usePeople().data?.users ?? [];
   const [showResolved, setShowResolved] = useState(false);
   const all = useMemo(() => textThreads(q.data ?? []), [q.data]);
@@ -152,73 +160,17 @@ export function CommentRail({
     selector: ({ editor: e }) => (e ? suggestionsIn(e.state.doc) : []),
     equalityFn: (a, b) => !!b && JSON.stringify(a) === JSON.stringify(b),
   });
-  const decide = (s: Suggestion, accept: boolean) => editor.view.dispatch(settle(editor.state, s.id, accept));
-  const decideAll = (accept: boolean) => {
-    for (const s of [...proposals].reverse()) editor.view.dispatch(settle(editor.state, s.id, accept));
-  };
-  const showProposal = (s: Suggestion) => editor.chain().setTextSelection({ from: s.from, to: s.to }).scrollIntoView().run();
 
   if (!draft && !all.length && !proposals.length) return null;
   return (
     <aside className="doc-rail" aria-label={tr("Comments and suggestions on the text")}>
       {proposals.length > 0 && (
-        <section className="doc-proposals" aria-label={tr("Suggestions")}>
-          <div className="doc-proposals-head">
-            <strong>{tr("Suggestions ({length})", { length: proposals.length })}</strong>
-            {canEdit && proposals.length > 1 && (
-              <span className="doc-thread-actions">
-                <Button size="sm" variant="ghost" onClick={() => decideAll(true)}>
-                  {tr("Accept all")}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => decideAll(false)}>
-                  {tr("Reject all")}
-                </Button>
-              </span>
-            )}
-          </div>
-          <ul className="doc-threads">
-            {proposals.map((s) => (
-              <li key={s.id} className="doc-thread doc-proposal">
-                <button type="button" className="doc-proposal-what" onClick={() => showProposal(s)}>
-                  {s.deleted && s.inserted ? (
-                    <>
-                      {tr("Replace")} <del className="doc-del">{isolate(s.deleted)}</del> {tr("with")} <ins className="doc-ins">{isolate(s.inserted)}</ins>
-                    </>
-                  ) : s.inserted ? (
-                    <>
-                      {tr("Add")} <ins className="doc-ins">{isolate(s.inserted)}</ins>
-                    </>
-                  ) : (
-                    <>
-                      {tr("Remove")} <del className="doc-del">{isolate(s.deleted)}</del>
-                    </>
-                  )}
-                </button>
-                <div className="doc-thread-head">
-                  <strong>{s.name || tr("Someone")}</strong>
-                  {s.at && (
-                    <time className="faint" dateTime={s.at}>
-                      {isolate(formatDateTime(s.at))}
-                    </time>
-                  )}
-                </div>
-                {canEdit && (
-                  <div className="doc-thread-actions">
-                    <Button size="sm" variant="ghost" onClick={() => decide(s, false)}>
-                      {tr("Reject")}
-                    </Button>
-                    <Button size="sm" onClick={() => decide(s, true)}>
-                      {tr("Accept")}
-                    </Button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Suspense fallback={<ListSkeleton rows={2} />}>
+          <SuggestionList editor={editor} proposals={proposals} canEdit={canEdit} />
+        </Suspense>
       )}
       {draft && (
-        <section className="doc-thread is-active" aria-label={tr("New comment")}>
+        <section className="doc-thread is-active" aria-label={tr("New comment")} ref={draftBox}>
           <blockquote className="doc-thread-quote">{isolate(draft.quote)}</blockquote>
           <Composer people={people} onPost={start} />
           <Button size="sm" variant="ghost" onClick={onDraftDone}>
