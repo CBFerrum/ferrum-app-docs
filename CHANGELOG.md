@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.13
+
+The interface follows the upgraded design system, rebuilt with Ferrum-Frontend 0a47157. Text uses the kit's type roles (nothing under 12px) and controls its height tokens; loading shows skeletons shaped like what is coming; empty, no matches, denied, offline and failed are told apart; status colours come from stored state ids. The interface check now runs the UI lint against an empty baseline. The editor's save indicator never says saved for work kept only in the browser; a search or filter that hides every document offers to clear it. At phone width the editor's toolbar scrolls inside itself with 44px controls, and the save status and avatars share the header row.
+
 ## 0.7.12
 
 Rebuilt with Ferrum-Frontend c59c9a2: the names of its models, fields and manifest in Arabic and Hindi (47 each in ui/src/locales/names, which the platform serves to every page of the workspace, so a record's labels, the launcher and the bar read in the person's language), and the sentences its pages still showed in English (split around a link or a figure, built in code from a template or word by word) whole and translated (292 words each in ui/src/locales). Translated by the model, to be reviewed by native speakers.
