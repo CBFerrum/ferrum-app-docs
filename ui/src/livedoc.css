@@ -381,7 +381,7 @@ input.doc-title:focus {
 /* The page stays a white page in the dark theme, as in Google Docs: a document's colours are its
    author's, chosen on white, so black on white stays readable and a dark blue does not vanish. What
    floats over it (menus, the bars) and everything around it follows the theme. */
-.doc-paper,
+.doc-sheet,
 .doc-version-page {
   color-scheme: light;
 }
@@ -405,10 +405,11 @@ input.doc-title:focus {
 }
 .doc-paper {
   min-height: 60vh;
-  padding: clamp(16px, 4vw, 48px);
-  background: var(--surface);
+  padding: 24px clamp(8px, 2vw, 28px) 48px;
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  overflow-x: auto;
 }
 
 /* The document itself: the same elements the HTML export makes (kernel coedit.rs). */
@@ -1302,4 +1303,448 @@ input.doc-title:focus {
   .doc-body table {
     min-width: 32rem !important;
   }
+}
+
+/* ── the page: a sheet at the paper's size and margins (page.ts), with the header and footer in its margins ── */
+.doc-sheet {
+  --ms: var(--ml, 96px);
+  --me: var(--mr, 96px);
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  inline-size: var(--sheet-w, 100%);
+  min-block-size: var(--sheet-h, 60vh);
+  margin-inline: auto;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+:root[dir="rtl"] .doc-sheet,
+[dir="rtl"] .doc-sheet {
+  --ms: var(--mr, 96px);
+  --me: var(--ml, 96px);
+}
+.doc-sheet-text {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+.doc-sheet .doc-body {
+  max-inline-size: none;
+  min-block-size: 0;
+  margin: 0;
+  padding-inline: var(--ms) var(--me);
+}
+.doc-region {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+  min-block-size: var(--mt, 96px);
+  padding-inline: var(--ms) var(--me);
+  color: #555555; /* ui-lint-allow raw-color: the printed margin text is grey on the white page in every theme */
+  font-size: 9pt;
+  line-height: 1.4;
+}
+.doc-region-footer {
+  min-block-size: var(--mb, 96px);
+}
+.doc-region-first {
+  min-block-size: 0;
+}
+.doc-region .ProseMirror {
+  min-block-size: 1.4em;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+.doc-region .ProseMirror p {
+  margin: 0;
+}
+.doc-region .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: inline-start;
+  block-size: 0;
+  color: var(--faint);
+  pointer-events: none;
+  opacity: 0;
+}
+.doc-region:hover .ProseMirror p.is-editor-empty:first-child::before,
+.doc-region:focus-within .ProseMirror p.is-editor-empty:first-child::before {
+  opacity: 1;
+}
+.doc-region-label {
+  position: absolute;
+  inset-inline-end: 8px;
+  inset-block-start: 4px;
+  padding: 0 6px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  pointer-events: none;
+}
+.doc-region:hover .doc-region-label,
+.doc-region:focus-within .doc-region-label {
+  opacity: 1;
+}
+.doc-region-header {
+  border-block-end: 1px dashed transparent;
+}
+.doc-region-footer {
+  border-block-start: 1px dashed transparent;
+}
+.doc-region:hover,
+.doc-region:focus-within {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.doc-region-bar {
+  position: absolute;
+  inset-inline-start: var(--ms);
+  inset-block-start: 100%;
+  z-index: 5;
+  margin-block-start: 4px;
+}
+.doc-region-footer .doc-region-bar {
+  inset-block-start: auto;
+  inset-block-end: 100%;
+  margin-block: 0 4px;
+}
+.doc-field {
+  display: inline-block;
+  padding: 0 6px;
+  color: var(--primary);
+  font-size: 0.95em;
+  background: var(--primary-soft);
+  border-radius: 4px;
+}
+.doc-field::after {
+  content: attr(data-label);
+}
+.doc-field.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+}
+
+/* A page break: a labelled rule while editing, a break in print. */
+.doc-page-break {
+  position: relative;
+  block-size: 0;
+  margin: 1.6em 0;
+  border-block-start: 1px dashed var(--border-strong);
+  break-after: page;
+  page-break-after: always;
+}
+.doc-page-break::before {
+  content: attr(data-label);
+  position: absolute;
+  inset-block-start: -0.8em;
+  inset-inline-start: 50%;
+  padding: 0 10px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: nowrap;
+  background: var(--surface);
+  translate: -50% 0;
+}
+:root[dir="rtl"] .doc-page-break::before,
+[dir="rtl"] .doc-page-break::before {
+  translate: 50% 0;
+}
+.doc-page-break.ProseMirror-selectednode {
+  border-color: var(--primary);
+}
+/* Where the next page starts, worked out by the browser's own layout (layout.ts): a rule in the text and the number in the margin. */
+.doc-pagemark {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 1;
+  border-block-start: 1px dotted var(--border-strong);
+  pointer-events: none;
+}
+.doc-pagemark::after {
+  content: attr(data-label);
+  position: absolute;
+  inset-inline-end: 8px;
+  inset-block-start: -9px;
+  padding: 0 6px;
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  line-height: 16px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+
+/* An inserted table of contents. */
+.doc-contents {
+  margin: 1em 0;
+  padding: 0.5em 0.9em 0.6em;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  user-select: none;
+}
+.doc-contents.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+}
+.doc-contents-title {
+  margin-block-end: 0.4em;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+.doc-contents-none {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.doc-contents-item {
+  display: block;
+  padding-block: 1px;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.doc-contents-item:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.doc-contents-l2 {
+  padding-inline-start: 1.2em;
+}
+.doc-contents-l3 {
+  padding-inline-start: 2.4em;
+}
+.doc-contents-l4 {
+  padding-inline-start: 3.6em;
+}
+.doc-contents-l5 {
+  padding-inline-start: 4.8em;
+}
+
+/* Footnotes: references numbered by a counter in the order of the text, the bodies at the end of the document. */
+.doc-body {
+  counter-reset: docfn;
+}
+.doc-fn-ref {
+  counter-increment: docfn;
+  color: var(--primary);
+  font-size: 0.75em;
+  font-weight: 600;
+  line-height: 0;
+  vertical-align: super;
+  cursor: pointer;
+}
+.doc-fn-ref::after {
+  content: counter(docfn);
+}
+.doc-fn-ref.ProseMirror-selectednode {
+  outline: 2px solid var(--primary);
+  border-radius: 2px;
+}
+.doc-footnote {
+  position: relative;
+  padding-inline-start: 1.7em;
+  font-size: 0.85em;
+  line-height: 1.45;
+}
+.doc-footnote::before {
+  content: attr(data-n);
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.1em;
+  color: var(--primary);
+  font-size: 0.8em;
+  font-weight: 600;
+  vertical-align: super;
+}
+.doc-footnote p {
+  margin: 0.15em 0;
+}
+.doc-footnote-first {
+  margin-block-start: 2.4em;
+  padding-block-start: 0.7em;
+  border-block-start: 1px solid var(--border-strong);
+}
+
+/* Title and Subtitle. */
+.doc-body p[data-role="title"] {
+  margin-block: 0 0.2em;
+  font-size: 26pt;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.doc-body p[data-role="subtitle"] {
+  margin-block: 0 0.7em;
+  color: var(--muted-foreground);
+  font-size: 15pt;
+  line-height: 1.3;
+}
+
+/* The link card over a link, and the link panel. */
+.doc-linkcard {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-inline-size: min(28rem, calc(100% - 8px));
+  padding: 4px 4px 4px 10px;
+  color: var(--text);
+  font-size: var(--text-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color-scheme: light dark;
+}
+.doc-linkcard-target {
+  min-inline-size: 0;
+  max-inline-size: 18rem;
+  overflow: hidden;
+  color: var(--primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-linkpanel {
+  position: absolute;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  inline-size: min(22rem, calc(100% - 8px));
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  color-scheme: light dark;
+}
+.doc-linkpanel-list {
+  display: flex;
+  flex-direction: column;
+  max-block-size: 14rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.doc-linkpanel-list button {
+  inline-size: 100%;
+  min-block-size: var(--control-h-sm);
+  padding: 2px 8px;
+  overflow: hidden;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.doc-linkpanel-list button:hover,
+.doc-linkpanel-list button[aria-selected="true"] {
+  background: var(--surface-2);
+}
+.doc-linkpanel-hint {
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+/* The page count and the words in the document, under the page. */
+.doc-statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  align-items: center;
+  padding-block: 4px;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+/* Printing: the page alone, in the page setup's size and margins, whatever the theme (the @page rule is made in print.ts). */
+@media print {
+  html,
+  body {
+    background: #ffffff !important; /* ui-lint-allow raw-color: paper is white */
+  }
+  ferrum-bar,
+  .toaster,
+  dialog,
+  .doc-page > :not(.doc-main),
+  .doc-main > :not(.doc-paper),
+  .doc-paper > :not(.doc-sheet),
+  .doc-sheet > :not(.doc-sheet-text),
+  .doc-pagemark,
+  .doc-float {
+    display: none !important;
+  }
+  #main,
+  .docs-app,
+  .doc-page,
+  .doc-main,
+  .doc-paper,
+  .doc-sheet {
+    display: block !important;
+    min-block-size: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .doc-sheet {
+    inline-size: auto !important;
+  }
+  .doc-sheet .doc-body {
+    padding: 0 !important;
+    color: #000000; /* ui-lint-allow raw-color: paper is white, text black */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .doc-page-break {
+    margin: 0;
+    border: 0;
+  }
+  .doc-page-break::before {
+    display: none;
+  }
+  .doc-body :is(h1, h2, h3, h4, h5, h6) {
+    break-after: avoid;
+  }
+  .doc-body :is(tr, img, .doc-footnote, .doc-contents) {
+    break-inside: avoid;
+  }
+  .doc-body thead {
+    display: table-header-group;
+  }
+  .doc-found,
+  .doc-comment,
+  [data-comment] {
+    background: none !important;
+    box-shadow: none !important;
+  }
+  .collaboration-cursor__caret,
+  .collaboration-cursor__label,
+  .ProseMirror-widget {
+    display: none !important;
+  }
+  .doc-contents {
+    user-select: auto;
+  }
+}
+
+/* The copy of the text the layout is measured on (layout.ts): a page break is a column break there. */
+.doc-measure .doc-page-break {
+  margin: 0;
+  border: 0;
+  break-after: column;
+}
+.doc-measure .doc-page-break::before {
+  display: none;
 }

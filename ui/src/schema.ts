@@ -11,14 +11,17 @@ import { Callouts } from "./callout";
 import { formattingExtensions } from "./format";
 import { DocImage } from "./image";
 import { Mention } from "./mention";
+import { DocWithNotes, pagesExtensions } from "./pages";
 import { Deletion, Insertion } from "./suggest";
 
 /** The extensions that define the document's schema; `file` is the document images are kept with. */
 export function documentExtensions(file: string): AnyExtension[] {
   return [
     // The shared document has its own undo (Collaboration's), not the editor's.
-    StarterKit.configure({ undoRedo: false, link: { openOnClick: false, autolink: true, defaultProtocol: "https" } }),
+    StarterKit.configure({ undoRedo: false, document: false, trailingNode: false, link: { openOnClick: false, autolink: true, defaultProtocol: "https" } }),
+    DocWithNotes,
     ...formattingExtensions(),
+    ...pagesExtensions(),
     TaskList,
     TaskItem.configure({ nested: true }),
     // Columns are dragged to a width (the cells keep it); a table wider than the page scrolls inside it.
