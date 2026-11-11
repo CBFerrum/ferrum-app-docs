@@ -15,6 +15,7 @@ import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import { ySyncPluginKey } from "@tiptap/y-tiptap";
 import { t } from "@ferrum/client";
 import { headingsOf } from "./outline";
+import { suggestingRefuses } from "./suggest";
 
 const ID = /^[a-z0-9]{6,24}$/i;
 /** A short random id for a footnote or a heading anchor. */
@@ -57,7 +58,8 @@ export const PageBreak = Node.create({
     return {
       insertPageBreak:
         () =>
-        ({ tr, dispatch, state }) => {
+        ({ tr, dispatch, state, editor }) => {
+          if (dispatch && suggestingRefuses(editor)) return false;
           const type = state.schema.nodes.pageBreak!;
           // Not in a footnote: the notes are the end of the document, nothing goes after them.
           for (let d = state.selection.$from.depth; d > 0; d--) if (state.selection.$from.node(d).type.name === "footnote") return false;
@@ -119,8 +121,7 @@ export const TableOfContents = Node.create({
     return {
       insertContents:
         () =>
-        ({ commands }) =>
-          commands.insertContent({ type: "tableOfContents" }),
+        ({ commands, editor, dispatch }) => (dispatch && suggestingRefuses(editor) ? false : commands.insertContent({ type: "tableOfContents" })),
     };
   },
 });
@@ -406,8 +407,9 @@ export const Structure = Extension.create({
           chain().setParagraph().updateAttributes("paragraph", { role: cleanRole(role) }).run(),
       insertFootnote:
         (id) =>
-        ({ state, tr, dispatch }) => {
+        ({ state, tr, dispatch, editor }) => {
           const { $from } = state.selection;
+          if (dispatch && suggestingRefuses(editor)) return false;
           for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === "footnote") return false;
           if (dispatch) {
             tr.replaceSelectionWith(state.schema.nodes.footnoteRef!.create({ id: cleanId(id) ?? newId() }), false);
