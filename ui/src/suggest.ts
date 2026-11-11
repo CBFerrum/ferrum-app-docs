@@ -8,7 +8,7 @@
 // Suggesting tracks words. Formatting and structure (lists, headings, a paragraph joined, a mention)
 // are refused while suggesting: a mark cannot carry them. A new paragraph (Enter) is let through.
 
-import { Extension, Mark, mergeAttributes } from "@tiptap/core";
+import { type Editor, Extension, Mark, mergeAttributes } from "@tiptap/core";
 import { Fragment, type MarkType, type Node as PMNode, Slice } from "@tiptap/pm/model";
 import { type EditorState, Plugin, PluginKey, TextSelection, type Transaction } from "@tiptap/pm/state";
 import { ReplaceStep } from "@tiptap/pm/transform";
@@ -275,4 +275,11 @@ export const Suggestions = Extension.create<{ onRefused: () => void }>({
 /** Turns suggesting on or off. */
 export function setSuggesting(state: EditorState, on: boolean, me: Suggester | null): Transaction {
   return state.tr.setMeta(suggestKey, { on, me });
+}
+
+/** Whether this editor is suggesting, which proposes words only: an insertion of a page break, a note or contents is refused (and the person told, as for other formatting and structure). */
+export function suggestingRefuses(editor: Editor): boolean {
+  if (!suggestKey.getState(editor.state)?.on) return false;
+  (editor.extensionManager.extensions.find((e) => e.name === "docSuggestions")?.options as { onRefused?: () => void } | undefined)?.onRefused?.();
+  return true;
 }

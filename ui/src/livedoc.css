@@ -1760,3 +1760,12 @@ input.doc-title:focus {
 .doc-measure .tableWrapper {
   overflow: visible;
 }
+
+/* On a touch screen every menu row is a full-size target (the image size menu, the style and font menus). */
+@media (pointer: coarse) {
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="menuitemcheckbox"] {
+    min-block-size: var(--control-h);
+  }
+}
