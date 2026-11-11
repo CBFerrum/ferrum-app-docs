@@ -368,6 +368,15 @@ input.doc-title:focus {
 .doc-float::-webkit-scrollbar {
   display: none;
 }
+.doc-float-beside {
+  flex-direction: column;
+  overflow: visible;
+}
+.doc-float-beside .doc-sep {
+  width: 20px;
+  height: 1px;
+  margin: 4px 0;
+}
 
 /* The page stays a white page in the dark theme, as in Google Docs: a document's colours are its
    author's, chosen on white, so black on white stays readable and a dark blue does not vanish. What
@@ -1287,4 +1296,10 @@ input.doc-title:focus {
 .doc-body td p,
 .doc-body th p {
   margin: 0.15em 0;
+}
+/* On a phone a table keeps columns a person can read and scrolls sideways inside the page. */
+@media (max-width: 600px) {
+  .doc-body table {
+    min-width: 32rem !important;
+  }
 }

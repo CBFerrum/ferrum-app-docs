@@ -21,6 +21,8 @@ interface Place {
   top: number;
   inline: number;
   width: number;
+  /** The page's own width. */
+  host: number;
 }
 
 /** Where a bar goes: just above `find`'s element (below it when the page's top is in the way), in the page's own coordinates. */
@@ -34,8 +36,8 @@ function usePlace(editor: Editor, find: (e: Editor) => HTMLElement | null): Plac
       const r = el.getBoundingClientRect();
       const h = host.getBoundingClientRect();
       const rtl = getComputedStyle(host).direction === "rtl";
-      const next = { top: Math.round(r.top - h.top), inline: Math.round(rtl ? h.right - r.right : r.left - h.left), width: Math.round(r.width) };
-      setPlace((p) => (p && p.top === next.top && p.inline === next.inline && p.width === next.width ? p : next));
+      const next = { top: Math.round(r.top - h.top), inline: Math.round(rtl ? h.right - r.right : r.left - h.left), width: Math.round(r.width), host: Math.round(h.width) };
+      setPlace((p) => (p && p.top === next.top && p.inline === next.inline && p.width === next.width && p.host === next.host ? p : next));
     };
     update();
     editor.on("transaction", update);
@@ -49,9 +51,11 @@ function usePlace(editor: Editor, find: (e: Editor) => HTMLElement | null): Plac
   return place;
 }
 
-function Bar({ place, label, children }: { place: Place; label: string; children: ReactNode }) {
+/** `beside`: the bar stands in the margin next to the thing, when the page has room for it, so it covers none of the text. */
+function Bar({ place, label, children, beside }: { place: Place; label: string; children: ReactNode; beside?: boolean }) {
+  const room = beside && place.host - (place.inline + place.width) >= 56;
   return (
-    <div className="doc-float" role="toolbar" aria-label={label} style={{ insetBlockStart: Math.max(4, place.top - 44), insetInlineStart: Math.max(0, place.inline) }}>
+    <div className={`doc-float${room ? " doc-float-beside" : ""}`} role="toolbar" aria-label={label} aria-orientation={room ? "vertical" : "horizontal"} style={room ? { insetBlockStart: Math.max(4, place.top), insetInlineStart: place.inline + place.width + 8 } : { insetBlockStart: Math.max(4, place.top - 44), insetInlineStart: Math.max(0, place.inline) }}>
       {children}
     </div>
   );
@@ -77,7 +81,7 @@ export function TableBar({ editor }: { editor: Editor }) {
   if (!s.on || !place) return null;
   const run = () => editor.chain().focus();
   return (
-    <Bar place={place} label={t("Table")}>
+    <Bar place={place} label={t("Table")} beside>
       <Drop
         editor={editor}
         label={t("Row")}
