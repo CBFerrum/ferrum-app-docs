@@ -143,3 +143,30 @@ describe("numbered lists", () => {
     e.destroy();
   });
 });
+
+describe("text direction", () => {
+  it("is the block's own words unless chosen, and only ltr or rtl is kept", () => {
+    const e = new Editor({ extensions: documentExtensions("f"), content: '<p>Hello, world 2026.</p><p dir="rtl">مرحبا</p><p dir="sideways">x</p><ul><li><p>שלום 12</p></li></ul>' });
+    const html = e.getHTML();
+    expect(html).toContain('<p dir="auto">Hello, world 2026.</p>');
+    expect(html).toContain('<p dir="rtl">مرحبا</p>');
+    expect(html).toContain('<p dir="auto">x</p>');
+    expect(html).toContain('<li><p dir="auto">שלום 12</p></li>');
+    e.commands.setTextSelection(2);
+    e.commands.setTextDirection("rtl");
+    expect(e.state.doc.firstChild!.attrs.dir).toBe("rtl");
+    e.commands.setTextDirection(null);
+    expect(e.state.doc.firstChild!.attrs.dir).toBeNull();
+    e.destroy();
+  });
+});
+
+describe("the direction of blocks around paragraphs", () => {
+  it("is that of their first letters, or of a paragraph's chosen direction", async () => {
+    const { directionOf } = await import("./format");
+    const e = new Editor({ extensions: documentExtensions("f"), content: '<ul><li><p>12, דוח</p></li><li><p>(Avonmouth)</p></li></ul><ul><li><p dir="rtl">x</p></li></ul><table><tr><td><p>84.2 مليون</p></td></tr></table><p>end</p>' });
+    const [list, chosen, table] = [e.state.doc.child(0), e.state.doc.child(1), e.state.doc.child(2)];
+    expect([directionOf(list), directionOf(list.child(0)), directionOf(list.child(1)), directionOf(chosen), directionOf(table.firstChild!.firstChild!)]).toEqual(["rtl", "rtl", "ltr", "rtl", "rtl"]);
+    e.destroy();
+  });
+});

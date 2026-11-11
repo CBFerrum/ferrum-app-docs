@@ -135,6 +135,7 @@ export const DocImage = Node.create<{ file: string }>({
         box.append(h);
       }
       const words = document.createElement("figcaption");
+      words.dir = "auto";
       dom.append(box, words);
       const draw = (n: typeof node) => {
         const a = n.attrs as ImageAttrs;

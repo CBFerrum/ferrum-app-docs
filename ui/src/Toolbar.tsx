@@ -52,13 +52,14 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@ferrum/kit/primitives";
 import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
-import { DEFAULT_SIZE, FONTS, LINE_HEIGHTS, MAX_SIZE, MIN_SIZE, SIZES, cleanColor, cleanFontFamily, cleanFontSize, cleanLineHeight, cleanSpace, fontStack } from "./format";
+import { DEFAULT_SIZE, FONTS, LINE_HEIGHTS, MAX_SIZE, MIN_SIZE, SIZES, cleanColor, cleanDir, cleanFontFamily, cleanFontSize, cleanLineHeight, cleanSpace, fontStack } from "./format";
 import { Palette, gridKeys } from "./Palette";
 import { Sep, Tip, Tool } from "./Tool";
 import { keyOf } from "./keys";
@@ -119,6 +120,7 @@ function selectionState(e: Editor) {
     right: e.isActive({ textAlign: "right" }),
     justify: e.isActive({ textAlign: "justify" }),
     lineHeight: cleanLineHeight(block.lineHeight),
+    dir: cleanDir(block.dir),
     spaceBefore: cleanSpace(block.spaceBefore),
     spaceAfter: cleanSpace(block.spaceAfter),
     canUndo: e.can().undo(),
@@ -132,7 +134,7 @@ const TRIGGER = "doc-tool doc-drop";
 
 export function Drop({ label, value, keys, className = "", children, editor, content }: { label: string; value?: string; keys?: string; className?: string; children: ReactNode; editor: Editor; content: ReactNode }) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <Tip label={label} keys={keys}>
         <DropdownMenuTrigger asChild>
           <button type="button" className={`${TRIGGER} ${className}`} aria-label={value ? t("{label}: {value}", { label, value }) : label} onMouseDown={(e) => e.preventDefault()}>
@@ -238,7 +240,7 @@ function SizeControl({ editor, size }: { editor: Editor; size: number | null }) 
           }}
         />
       </Tip>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <Tip label={t("Sizes")}>
           <DropdownMenuTrigger asChild>
             <button type="button" className="doc-tool doc-size-list" aria-label={t("Sizes")} onMouseDown={(e) => e.preventDefault()}>
@@ -451,6 +453,13 @@ export function Toolbar({
       </DropdownMenuRadioGroup>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => setSpacing(true)}>{t("Custom spacing…")}</DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>{t("Text direction")}</DropdownMenuLabel>
+      <DropdownMenuRadioGroup value={s.dir ?? ""} onValueChange={(v) => editor.chain().focus().setTextDirection(cleanDir(v)).run()}>
+        <DropdownMenuRadioItem value="">{t("From the text")}</DropdownMenuRadioItem>
+        <DropdownMenuRadioItem value="ltr">{t("Left to right")}</DropdownMenuRadioItem>
+        <DropdownMenuRadioItem value="rtl">{t("Right to left")}</DropdownMenuRadioItem>
+      </DropdownMenuRadioGroup>
     </>
   );
   const listStyles = (
@@ -596,7 +605,7 @@ export function Toolbar({
           <Tool label={t("Center")} icon={AlignCenter} keys={keyOf("center")} active={s.center} onClick={() => run().setTextAlign("center").run()} />
           <Tool label={t("Align right")} icon={AlignRight} keys={keyOf("right")} active={s.right} onClick={() => run().setTextAlign("right").run()} />
           <Tool label={t("Justify")} icon={AlignJustify} keys={keyOf("justify")} active={s.justify} onClick={() => run().setTextAlign("justify").run()} />
-          <Drop editor={editor} label={t("Line and paragraph spacing")} content={spacingItems}>
+          <Drop editor={editor} label={t("Line and paragraph spacing, text direction")} content={spacingItems}>
             <ArrowDownUp size={16} aria-hidden />
           </Drop>
         </>

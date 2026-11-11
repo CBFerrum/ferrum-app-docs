@@ -329,6 +329,7 @@ declare module "@tiptap/core" {
       indentLess: () => ReturnType;
       clearFormatting: () => ReturnType;
       setCellBackground: (color: string | null) => ReturnType;
+      setTextDirection: (dir: "ltr" | "rtl" | null) => ReturnType;
     };
   }
 }
@@ -377,6 +378,20 @@ export const Formatting = Extension.create({
               const n = cleanIndent(a.indent);
               return style([["margin-inline-start", n === null ? null : `${n * INDENT_STEP}pt`]]);
             },
+          },
+        },
+      },
+      {
+        types: BLOCKS,
+        attributes: {
+          // The direction of the text: "ltr" or "rtl" when the author chose it, else (absent) the block's own words
+          // decide (`dir="auto"`), so an English paragraph reads left to right in an Arabic interface and an Arabic one
+          // right to left in an English one. Alignment "start" and the indent follow it; an explicit left or right stays.
+          dir: {
+            default: null,
+            keepOnSplit: true,
+            parseHTML: (el: HTMLElement) => cleanDir(el.getAttribute("dir")),
+            renderHTML: (a: Record<string, unknown>) => ({ dir: cleanDir(a.dir) ?? "auto" }),
           },
         },
       },
@@ -463,6 +478,7 @@ export const Formatting = Extension.create({
           return c ? chain().setMark("highlight", { color: c }).run() : chain().unsetMark("highlight").run();
         },
       setLineHeight: (ratio) => blocks({ lineHeight: cleanLineHeight(ratio) }),
+      setTextDirection: (dir) => blocks({ dir: cleanDir(dir) }),
       setParagraphSpace: ({ before, after }) => blocks({ ...(before !== undefined ? { spaceBefore: cleanSpace(before) } : {}), ...(after !== undefined ? { spaceAfter: cleanSpace(after) } : {}) }),
       indentMore:
         () =>
@@ -506,6 +522,36 @@ export const Formatting = Extension.create({
   },
 });
 
+/** The blocks around paragraphs whose direction their first words give (format.ts decorations). */
+const AROUND = new Set(["bulletList", "orderedList", "listItem", "taskList", "taskItem", "tableCell", "tableHeader", "blockquote", "footnote"]);
+const LETTER = /\p{L}/u;
+const RTL_LETTER = /[\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}\p{Script=Adlam}]/u;
+
+/** The direction of a block's first words: a paragraph's chosen direction where it has one, else the script of its
+ *  first letter (right to left for Arabic, Hebrew and their kin); left to right when it has no letters. */
+export function directionOf(node: PMNode): "ltr" | "rtl" {
+  let out: "ltr" | "rtl" | null = null;
+  node.descendants((n) => {
+    if (out) return false;
+    if (n.isTextblock && cleanDir(n.attrs.dir)) {
+      out = cleanDir(n.attrs.dir);
+      return false;
+    }
+    if (n.isText) {
+      for (const ch of n.text!) {
+        if (!LETTER.test(ch)) continue;
+        out = RTL_LETTER.test(ch) ? "rtl" : "ltr";
+        break;
+      }
+    }
+    return !out;
+  });
+  return out ?? "ltr";
+}
+
+/** A paragraph's chosen direction, or null (its words decide). */
+export const cleanDir = (v: unknown): "ltr" | "rtl" | null => (v === "ltr" || v === "rtl" ? v : null);
+
 /** A cell's vertical place: middle or bottom (top is the default, stored as nothing). */
 export const cleanVAlign = (v: unknown): "middle" | "bottom" | null => (v === "middle" || v === "bottom" ? v : null);
 
@@ -544,6 +590,9 @@ export function listNumbersPlugin(): Plugin {
           }
           state.doc.descendants((node, pos) => {
             if (node.type.name === "table" && node.attrs.borders === "none") decos.push(Decoration.node(pos, pos + node.nodeSize, { "data-borders": "none" }));
+            // A list, list item, cell, quote or note reads in the direction of its first words (its markers, start
+            // edge and indent with it). HTML's dir="auto" cannot: it skips text inside elements with a dir of their own.
+            if (AROUND.has(node.type.name)) decos.push(Decoration.node(pos, pos + node.nodeSize, { dir: directionOf(node) }));
             return node.isBlock && !node.isTextblock;
           });
           set = DecorationSet.create(state.doc, decos);
