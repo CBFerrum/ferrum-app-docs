@@ -5,7 +5,7 @@
 
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type Editor, useEditorState } from "@tiptap/react";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, errorMessage, formatDateTime, t as tr, isolate } from "@ferrum/client";
 import { Button, confirmDialog, toast, useLiveEntity } from "@ferrum/kit";
 import { Composer, usePeople } from "@ferrum/records";
@@ -57,6 +57,11 @@ export function CommentRail({
 }) {
   const qc = useQueryClient();
   const q = useQuery(commentsQuery(file));
+  // A new comment takes the keyboard at once (Ctrl+Alt+M, or the Comment button), as Google Docs does.
+  const draftBox = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (draft) draftBox.current?.querySelector<HTMLTextAreaElement>("textarea")?.focus();
+  }, [draft]);
   const people = usePeople().data?.users ?? [];
   const [showResolved, setShowResolved] = useState(false);
   const all = useMemo(() => textThreads(q.data ?? []), [q.data]);
@@ -165,7 +170,7 @@ export function CommentRail({
         </Suspense>
       )}
       {draft && (
-        <section className="doc-thread is-active" aria-label={tr("New comment")}>
+        <section className="doc-thread is-active" aria-label={tr("New comment")} ref={draftBox}>
           <blockquote className="doc-thread-quote">{isolate(draft.quote)}</blockquote>
           <Composer people={people} onPost={start} />
           <Button size="sm" variant="ghost" onClick={onDraftDone}>
