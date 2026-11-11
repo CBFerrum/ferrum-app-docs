@@ -19,6 +19,9 @@ export type BlockId =
   | "quote"
   | "code"
   | "divider"
+  | "pagebreak"
+  | "contents"
+  | "footnote"
   | "image"
   | "date"
   | "mention";
@@ -50,6 +53,9 @@ export const BLOCKS: Block[] = [
   { id: "alert", get title() { return t("Alert"); }, get hint() { return t("A callout for something serious"); }, group: "Callouts", keywords: ["callout", "danger", "error", "important", "box"] },
   { id: "image", get title() { return t("Image"); }, get hint() { return t("Upload a picture"); }, group: "Insert", keywords: ["picture", "photo", "img", "upload", "screenshot"] },
   { id: "divider", get title() { return t("Divider"); }, get hint() { return t("A line between sections"); }, group: "Insert", keywords: ["line", "rule", "hr", "separator", "break"] },
+  { id: "pagebreak", get title() { return t("Page break"); }, get hint() { return t("Start the next page here"); }, group: "Insert", keywords: ["page", "new page", "break", "print"] },
+  { id: "contents", get title() { return t("Table of contents"); }, get hint() { return t("List the headings, with links"); }, group: "Insert", keywords: ["toc", "outline", "index"] },
+  { id: "footnote", get title() { return t("Footnote"); }, get hint() { return t("A numbered note at the end"); }, group: "Insert", keywords: ["note", "reference", "citation", "endnote"] },
   { id: "date", get title() { return t("Today's date"); }, get hint() { return t("Put today's date in the text"); }, group: "Insert", keywords: ["day", "time", "calendar", "now"] },
   { id: "mention", get title() { return t("Mention"); }, get hint() { return t("Name a person or a record"); }, group: "Insert", keywords: ["person", "people", "at", "link", "record", "tag"] },
 ];
