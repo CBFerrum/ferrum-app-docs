@@ -7,7 +7,7 @@ import { useEditorState } from "@tiptap/react";
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { api, isolate, t } from "@ferrum/client";
-import { Button, Spinner } from "@ferrum/kit";
+import { Button, Spinner, toast } from "@ferrum/kit";
 import { headingsOf } from "./outline";
 import { type DocItem, isDocument } from "./docslist";
 import { docTitle } from "./livedocs";
@@ -178,6 +178,18 @@ function Where({ editor, href }: { editor: Editor; href: string }) {
   );
 }
 
+/** Copies a link as an address that works anywhere (a document's or a heading's made absolute). */
+async function copyLink(href: string) {
+  try {
+    const target = targetOf(href);
+    const to = target.kind === "heading" ? `${location.origin}${location.pathname}${href}` : new URL(target.kind === "doc" ? `/docs/d/${target.id}` : href, location.origin).href;
+    await navigator.clipboard.writeText(to);
+    toast(t("Link copied"));
+  } catch {
+    toast(t("The browser did not allow copying: select the link and copy it"), "info");
+  }
+}
+
 /** The card over a link: while the pointer is on it or the caret is in it. */
 export function LinkCard({ editor, env, editable, edit }: { editor: Editor; env: LinkEnv; editable: boolean; edit: () => void }) {
   const caret = useEditorState({
@@ -232,6 +244,9 @@ export function LinkCard({ editor, env, editable, edit }: { editor: Editor; env:
       <Where editor={editor} href={shown.href} />
       <Button size="sm" onClick={open}>
         {t("Open")}
+      </Button>
+      <Button size="sm" onClick={() => void copyLink(shown.href)}>
+        {t("Copy link")}
       </Button>
       {editable && (
         <>

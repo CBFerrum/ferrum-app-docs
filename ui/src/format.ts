@@ -20,7 +20,7 @@ import { columnResizing } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import type { EditorView } from "@tiptap/pm/view";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 // ── colours ──
 
@@ -526,21 +526,31 @@ export function listNumbers(doc: PMNode): Map<number, number> {
   return out;
 }
 
-/** Draws continued numbering: each list that continues gets its first number on the page. */
+/** Draws what a node's own element cannot: a continued list's first number (`start`), and a table without borders
+ *  (the table's element is the column-resizing view's, which draws no attributes). As decorations: ProseMirror owns
+ *  the elements, so they are not set by hand. */
 export function listNumbersPlugin(): Plugin {
-  const draw = (view: EditorView) => {
-    for (const [pos, n] of listNumbers(view.state.doc)) {
-      const node = view.state.doc.nodeAt(pos);
-      if (node?.attrs.continues !== true) continue;
-      const el = view.nodeDOM(pos);
-      if (el instanceof HTMLOListElement && el.start !== n) el.start = n;
-    }
-  };
+  const cache = new WeakMap<PMNode, DecorationSet>();
   return new Plugin({
     key: new PluginKey("docListNumbers"),
-    view(view) {
-      queueMicrotask(() => !view.isDestroyed && draw(view));
-      return { update: (v) => draw(v) };
+    props: {
+      decorations(state) {
+        let set = cache.get(state.doc);
+        if (!set) {
+          const decos: Decoration[] = [];
+          for (const [pos, n] of listNumbers(state.doc)) {
+            const node = state.doc.nodeAt(pos);
+            if (node?.attrs.continues === true) decos.push(Decoration.node(pos, pos + node.nodeSize, { start: String(n) }));
+          }
+          state.doc.descendants((node, pos) => {
+            if (node.type.name === "table" && node.attrs.borders === "none") decos.push(Decoration.node(pos, pos + node.nodeSize, { "data-borders": "none" }));
+            return node.isBlock && !node.isTextblock;
+          });
+          set = DecorationSet.create(state.doc, decos);
+          cache.set(state.doc, set);
+        }
+        return set;
+      },
     },
   });
 }
