@@ -9,89 +9,40 @@ import { Collaboration } from "@tiptap/extension-collaboration";
 import { CollaborationCaret } from "@tiptap/extension-collaboration-caret";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  ArrowLeft,
-  Bold,
-  Code,
-  Highlighter,
-  ImagePlus,
-  Italic,
-  Link2,
-  List,
-  ListChecks,
-  ListOrdered,
-  Minus,
-  Quote,
-  Redo2,
-  Search,
-  SquareCode,
-  Strikethrough,
-  TableOfContents,
-  Underline,
-  Undo2,
-} from "lucide-react";
+import { ArrowLeft, TableOfContents } from "lucide-react";
+import { Search } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
 import { ApiError, api, download, errorMessage, initials, openPrint, saveBlob, shell, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
-import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
 import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
 import { DocComments, anchorOf, textThreads } from "./comments";
 import { Contents } from "./Contents";
 import { Find } from "./find";
 import { FindBar } from "./FindBar";
-import { IMAGE_TYPES, MAX_IMAGE, imageFiles } from "./image";
+import { IMAGE_TYPES, imageFiles } from "./image";
+import { ImageBar, TableBar } from "./ContextBars";
+import { remember, remembered } from "./local";
+import { ColumnResize } from "./format";
+import { PasteTidy, hasForeignImages, hasWords, localizeImages } from "./paste";
+import { Toolbar } from "./Toolbar";
+import { addImages, uploadImage } from "./upload";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { openMention } from "./mention";
 import { Menus } from "./menus";
 import { EditorMenus, type MenuApi, NO_MENU, useMentionNotices } from "./EditorMenus";
 import { usePresence } from "./presence";
 import { documentExtensions } from "./schema";
-import { Sep, Tool } from "./Tool";
+import { Tips } from "./Tool";
 import { Suggestions, setSuggesting, suggestionsIn } from "./suggest";
 import "./livedoc.css";
 
+export { cleanHref } from "./LinkDialog";
+
 /** Drive's panel of a file's comments and history (a contextual side panel of Drive). */
 const DETAILS_PANEL = "drive.details";
-
-/** Adds image files to the document: each goes up to Drive (the document keeps it), then into the
- *  text at the selection, in order. */
-async function addImages(editor: Editor, file: string, files: File[]) {
-  for (const f of files) {
-    if (f.size > MAX_IMAGE) {
-      toast(t("“{name}” is larger than 10 MB", { name: f.name }), "error");
-      continue;
-    }
-    try {
-      const up = await api.post<{ id: string; width: number; height: number }>(`/api/app/drive/files/${encodeURIComponent(file)}/images`, f);
-      editor.chain().focus().insertImage({ image: up.id, alt: "", width: up.width, height: up.height }).run();
-    } catch (e) {
-      toast(errorMessage(e), "error");
-    }
-  }
-}
-
-/** A small choice the browser remembers for this person (nothing where it refuses). */
-function remembered(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
-function remember(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // The choice just lasts until the page closes.
-  }
-}
 
 /** Whether a key was pressed in a field of the page other than the text and the find bar. */
 function inOtherField(target: EventTarget | null): boolean {
@@ -169,6 +120,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const title = docTitle(info.name);
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
+  // Whether the paste that is coming is the words alone (Ctrl or ⌘ Shift V).
+  const plain = useRef(false);
   // Comments on the text: one being written, and the thread in view (a click in its text shows it).
   const [draft, setDraft] = useState<Draft | null>(null);
   const [active, setActive] = useState<string | null>(null);
@@ -195,6 +148,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       editable: false,
       extensions: [
         ...documentExtensions(file),
+        PasteTidy,
+        ColumnResize,
         Placeholder.configure({ placeholder: t("Type / for blocks and @ to mention someone, or just start writing") }),
         DocComments.configure({ onActivate: (id) => activate.current(id) }),
         Suggestions.configure({ onRefused: () => toast(t("While suggesting, only words change: switch to Editing to change formatting or structure")) }),
@@ -206,13 +161,37 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       ],
       editorProps: {
         attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true" },
-        // Pictures pasted or dropped in go up to Drive and into the text.
-        handlePaste: (_view, event) => {
-          const images = imageFiles(event.clipboardData?.files);
-          if (!images.length || !current.current) return false;
-          event.preventDefault();
-          void addImages(current.current, file, images);
-          return true;
+        // Ctrl or ⌘ with Shift and V pastes the words alone: the editor does that itself, so what follows
+        // (pictures in pasted text going up to Drive) stands aside.
+        handleDOMEvents: {
+          keydown: (_view, e) => {
+            plain.current = (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "v";
+            return false;
+          },
+        },
+        // Pictures pasted or dropped in go up to Drive and into the text; so do the pictures inside pasted
+        // Word or Google Docs text, in the places they were. Word and Excel send a picture of the text
+        // beside the text: the text wins.
+        handlePaste: (view, event) => {
+          const ed = current.current;
+          const data = event.clipboardData;
+          if (!ed || !data || plain.current) return false;
+          const html = data.getData("text/html");
+          const images = imageFiles(data.files);
+          if (images.length && !hasWords(html) && !data.getData("text/plain").trim()) {
+            event.preventDefault();
+            void addImages(ed, file, images);
+            return true;
+          }
+          if (html && hasForeignImages(html)) {
+            event.preventDefault();
+            void localizeImages(html, (f) => uploadImage(file, f)).then(({ html: kept, skipped }) => {
+              if (skipped) toast(skipped === 1 ? t("1 picture in what you pasted could not be added: add it to the document as a file") : t("{n} pictures in what you pasted could not be added: add them to the document as files", { n: skipped }), "info");
+              if (!view.isDestroyed) view.pasteHTML(kept);
+            });
+            return true;
+          }
+          return false;
         },
         handleDrop: (view, event, _slice, moved) => {
           const images = moved ? [] : imageFiles(event.dataTransfer?.files);
@@ -397,6 +376,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
 
   return (
+    <Tips>
     <div className="doc-page">
       <header className="doc-bar">
         {fromDocs ? (
@@ -474,6 +454,12 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           {!state.loaded && !state.closed && <ReaderSkeleton />}
           <EditorContent editor={editor} hidden={!state.loaded} />
           {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
+          {editor && editable && !suggesting && (
+            <>
+              <TableBar editor={editor} />
+              <ImageBar editor={editor} file={file} />
+            </>
+          )}
         </div>
         {editor && state.loaded && (
           <CommentRail
@@ -504,6 +490,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       />
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}
     </div>
+    </Tips>
   );
 }
 
@@ -571,260 +558,6 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
         }
       }}
     />
-  );
-}
-
-const STYLES = [
-  { id: "p", get label() { return t("Text"); } },
-  { id: "h1", get label() { return t("Heading 1"); } },
-  { id: "h2", get label() { return t("Heading 2"); } },
-  { id: "h3", get label() { return t("Heading 3"); } },
-] as const;
-
-function Toolbar({
-  editor,
-  pickImages,
-  adding,
-  suggesting,
-  setSuggesting: setMode,
-}: {
-  editor: Editor;
-  pickImages: () => void;
-  adding: boolean;
-  suggesting: boolean;
-  setSuggesting: (on: boolean) => void;
-}) {
-  const s = useEditorState({
-    editor,
-    selector: ({ editor: e }) => ({
-      style: e.isActive("heading", { level: 1 }) ? "h1" : e.isActive("heading", { level: 2 }) ? "h2" : e.isActive("heading", { level: 3 }) ? "h3" : "p",
-      bold: e.isActive("bold"),
-      italic: e.isActive("italic"),
-      underline: e.isActive("underline"),
-      strike: e.isActive("strike"),
-      code: e.isActive("code"),
-      highlight: e.isActive("highlight"),
-      link: e.isActive("link"),
-      bullet: e.isActive("bulletList"),
-      ordered: e.isActive("orderedList"),
-      task: e.isActive("taskList"),
-      quote: e.isActive("blockquote"),
-      callout: e.isActive("blockquote") ? calloutKind(e.getAttributes("blockquote").callout) : null,
-      codeBlock: e.isActive("codeBlock"),
-      table: e.isActive("table"),
-      left: e.isActive({ textAlign: "left" }),
-      center: e.isActive({ textAlign: "center" }),
-      right: e.isActive({ textAlign: "right" }),
-      canUndo: e.can().undo(),
-      canRedo: e.can().redo(),
-      image: e.isActive("image"),
-    }),
-  });
-  const [linking, setLinking] = useState(false);
-  const [describing, setDescribing] = useState(false);
-  const run = () => editor.chain().focus();
-  return (
-    <div className={`doc-toolbar scroll-cue${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
-      <label className="sr-only" htmlFor="doc-mode">
-        {t("Mode")}
-      </label>
-      <select id="doc-mode" className="doc-style doc-mode" value={suggesting ? "suggest" : "edit"} onChange={(e) => setMode(e.target.value === "suggest")}>
-        <option value="edit">{t("Editing")}</option>
-        <option value="suggest">{t("Suggesting")}</option>
-      </select>
-      <Sep />
-      <Tool label={t("Undo")} icon={Undo2} disabled={!s.canUndo} onClick={() => run().undo().run()} />
-      <Tool label={t("Redo")} icon={Redo2} disabled={!s.canRedo} onClick={() => run().redo().run()} />
-      <Sep />
-      <label className="sr-only" htmlFor="doc-style">
-        {t("Paragraph style")}
-      </label>
-      <select
-        id="doc-style"
-        className="doc-style"
-        value={s.style}
-        onChange={(e) => {
-          const v = e.target.value;
-          if (v === "p") run().setParagraph().run();
-          else run().setHeading({ level: Number(v.slice(1)) as 1 | 2 | 3 }).run();
-        }}
-      >
-        {STYLES.map((o) => (
-          <option key={o.id} value={o.id}>
-            {isolate(o.label)}
-          </option>
-        ))}
-      </select>
-      <Sep />
-      <Tool label={t("Bold")} icon={Bold} active={s.bold} onClick={() => run().toggleBold().run()} />
-      <Tool label={t("Italic")} icon={Italic} active={s.italic} onClick={() => run().toggleItalic().run()} />
-      <Tool label={t("Underline")} icon={Underline} active={s.underline} onClick={() => run().toggleUnderline().run()} />
-      <Tool label={t("Strikethrough")} icon={Strikethrough} active={s.strike} onClick={() => run().toggleStrike().run()} />
-      <Tool label={t("Highlight")} icon={Highlighter} active={s.highlight} onClick={() => run().toggleHighlight().run()} />
-      <Tool label={t("Code")} icon={Code} active={s.code} onClick={() => run().toggleCode().run()} />
-      <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} active={s.link} onClick={() => setLinking(true)} />
-      <Tool label={adding ? t("Adding the image…") : t("Image")} icon={ImagePlus} disabled={adding} onClick={pickImages} />
-      {s.image && (
-        <button type="button" className="doc-tool doc-tool-text" onMouseDown={(e) => e.preventDefault()} onClick={() => setDescribing(true)}>
-          {t("Describe image")}
-        </button>
-      )}
-      <Sep />
-      <Tool label={t("Bulleted list")} icon={List} active={s.bullet} onClick={() => run().toggleBulletList().run()} />
-      <Tool label={t("Numbered list")} icon={ListOrdered} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
-      <Tool label={t("Checklist")} icon={ListChecks} active={s.task} onClick={() => run().toggleTaskList().run()} />
-      <Tool label={t("Quote")} icon={Quote} active={s.quote} onClick={() => run().toggleBlockquote().run()} />
-      {s.quote && (
-        <>
-          <label className="sr-only" htmlFor="doc-callout">
-            {t("Quote style")}
-          </label>
-          <select
-            id="doc-callout"
-            className="doc-style"
-            value={s.callout ?? ""}
-            onChange={(e) => {
-              const kind: CalloutKind | null = calloutKind(e.target.value);
-              if (kind) run().setCallout(kind).run();
-              else run().unsetCallout().run();
-            }}
-          >
-            <option value="">{t("Plain quote")}</option>
-            {CALLOUTS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {t("{label} callout", { label: c.label })}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
-      <Tool label={t("Code block")} icon={SquareCode} active={s.codeBlock} onClick={() => run().toggleCodeBlock().run()} />
-      <Tool label={t("Divider")} icon={Minus} onClick={() => run().setHorizontalRule().run()} />
-      <Sep />
-      <Tool label={t("Align left")} icon={AlignLeft} active={s.left} onClick={() => run().setTextAlign("left").run()} />
-      <Tool label={t("Center")} icon={AlignCenter} active={s.center} onClick={() => run().setTextAlign("center").run()} />
-      <Tool label={t("Align right")} icon={AlignRight} active={s.right} onClick={() => run().setTextAlign("right").run()} />
-      <Sep />
-      <Menu label={t(t("Table"))} ariaLabel={t("Table")} buttonClass="doc-tool doc-tool-text">
-        {(close) => {
-          const item = (go: () => boolean, label: string, needsTable = true) =>
-            (!needsTable || s.table) && (
-              <MenuItem
-                onSelect={() => {
-                  close();
-                  go();
-                }}
-              >
-                {isolate(label)}
-              </MenuItem>
-            );
-          return (
-            <>
-              {item(() => run().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(), t("Insert a table"), false)}
-              {item(() => run().addRowAfter().run(), t("Add a row below"))}
-              {item(() => run().addColumnAfter().run(), t("Add a column to the right"))}
-              {item(() => run().deleteRow().run(), t("Delete the row"))}
-              {item(() => run().deleteColumn().run(), t("Delete the column"))}
-              {item(() => run().deleteTable().run(), t("Delete the table"))}
-            </>
-          );
-        }}
-      </Menu>
-      {linking && <LinkDialog editor={editor} onClose={() => setLinking(false)} />}
-      {describing && <DescribeDialog editor={editor} onClose={() => setDescribing(false)} />}
-    </div>
-  );
-}
-
-/** What an image shows, for people who cannot see it (screen readers, and files that lose it). */
-function DescribeDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
-  const [alt, setAlt] = useState((editor.getAttributes("image").alt as string | undefined) ?? "");
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    editor.chain().focus().describeImage(alt).run();
-    onClose();
-  };
-  const footer: ReactNode = (
-    <>
-      <Button onClick={onClose}>{t("Cancel")}</Button>
-      <Button variant="primary" type="submit" form="doc-describe-form">
-        {t("Save")}
-      </Button>
-    </>
-  );
-  return (
-    <Dialog open onClose={onClose} title={t("Describe the image")} footer={footer}>
-      <form id="doc-describe-form" onSubmit={save}>
-        <Field label={t("Description")} htmlFor="doc-describe-alt" hint={t("What it shows, in a sentence; leave empty for a decoration")}>
-          <input id="doc-describe-alt" className="input" value={alt} maxLength={300} onChange={(e) => setAlt(e.target.value)} data-autofocus />
-        </Field>
-      </form>
-    </Dialog>
-  );
-}
-
-/** The web and mail only: anything else a reader could not follow safely. */
-export function cleanHref(raw: string): string | null {
-  const href = raw.trim();
-  if (!href) return null;
-  if (/^(https?:|mailto:)/i.test(href)) return href;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(href)) return null;
-  return href.includes("@") && !href.includes("/") ? `mailto:${href}` : `https://${href}`;
-}
-
-function LinkDialog({ editor, onClose }: { editor: Editor; onClose: () => void }) {
-  const current = (editor.getAttributes("link").href as string | undefined) ?? "";
-  const [href, setHref] = useState(current);
-  const [error, setError] = useState<string | null>(null);
-  const save = (e: FormEvent) => {
-    e.preventDefault();
-    const clean = cleanHref(href);
-    if (!href.trim()) {
-      editor.chain().focus().extendMarkRange("link").unsetLink().run();
-      return onClose();
-    }
-    if (!clean) return setError("Links go to web pages (https://…) or email addresses.");
-    editor.chain().focus().extendMarkRange("link").setLink({ href: clean }).run();
-    onClose();
-  };
-  const footer: ReactNode = (
-    <>
-      {current && (
-        <Button
-          variant="danger"
-          onClick={() => {
-            editor.chain().focus().extendMarkRange("link").unsetLink().run();
-            onClose();
-          }}
-        >
-          {t("Remove link")}
-        </Button>
-      )}
-      <Button onClick={onClose}>{t("Cancel")}</Button>
-      <Button variant="primary" type="submit" form="doc-link-form">
-        {t("Save")}
-      </Button>
-    </>
-  );
-  return (
-    <Dialog open onClose={onClose} title={current ? t("Edit link") : t("Add a link")} footer={footer}>
-      <form id="doc-link-form" onSubmit={save}>
-        <Field label={t("Address")} htmlFor="doc-link-href" error={error ?? undefined}>
-          <input
-            id="doc-link-href"
-            className="input"
-            type="text"
-            inputMode="url"
-            placeholder="https://example.com"
-            value={href}
-            aria-invalid={!!error || undefined}
-            aria-describedby={error ? "doc-link-href-error" : undefined}
-            onChange={(e) => setHref(e.target.value)}
-            data-autofocus
-          />
-        </Field>
-      </form>
-    </Dialog>
   );
 }
 
