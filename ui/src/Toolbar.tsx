@@ -132,7 +132,7 @@ const TRIGGER = "doc-tool doc-drop";
 
 export function Drop({ label, value, keys, className = "", children, editor, content }: { label: string; value?: string; keys?: string; className?: string; children: ReactNode; editor: Editor; content: ReactNode }) {
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu>
       <Tip label={label} keys={keys}>
         <DropdownMenuTrigger asChild>
           <button type="button" className={`${TRIGGER} ${className}`} aria-label={value ? t("{label}: {value}", { label, value }) : label} onMouseDown={(e) => e.preventDefault()}>
@@ -238,7 +238,7 @@ function SizeControl({ editor, size }: { editor: Editor; size: number | null }) 
           }}
         />
       </Tip>
-      <DropdownMenu modal={false}>
+      <DropdownMenu>
         <Tip label={t("Sizes")}>
           <DropdownMenuTrigger asChild>
             <button type="button" className="doc-tool doc-size-list" aria-label={t("Sizes")} onMouseDown={(e) => e.preventDefault()}>

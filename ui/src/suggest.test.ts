@@ -6,7 +6,7 @@ import { StarterKit } from "@tiptap/starter-kit";
 import { afterAll, describe, expect, it } from "vitest";
 import { Mention } from "./mention";
 import { documentExtensions } from "./schema";
-import { BACKWARD, Deletion, FormatChange, Insertion, type Refusal, SuggestionAttrs, Suggestions, setSuggesting, settle, settled, suggestPlugin, suggestionsIn, verifySuggestions } from "./suggest";
+import { BACKWARD, suggestKey as suggestKeyForTest, Deletion, FormatChange, Insertion, type Refusal, SuggestionAttrs, Suggestions, setSuggesting, settle, settled, suggestPlugin, suggestionsIn, verifySuggestions } from "./suggest";
 
 const schema = getSchema([StarterKit, Insertion, Deletion, FormatChange, SuggestionAttrs]);
 const ana = { id: "u-ana", name: "Ana Rao" };
@@ -131,6 +131,26 @@ describe("suggestions", () => {
     expect(state.apply(state.tr.insert(1, mention)).doc.eq(doc)).toBe(true);
     await Promise.resolve();
     expect(refused).toEqual(["block", "block"]);
+  });
+
+  it("refuses cleanly when another plugin changed the document in the same round", async () => {
+    const withMentions = getSchema([StarterKit, Insertion, Deletion, FormatChange, SuggestionAttrs, Mention]);
+    const { Plugin } = await import("@tiptap/pm/state");
+    // Like pages.ts keeping a paragraph at the end: it adds one after any change, marked as not a suggestion.
+    const tidy = new Plugin({
+      appendTransaction: (trs, _b, state) => (trs.some((t) => t.docChanged && !t.getMeta("tidy")) ? state.tr.insert(state.doc.content.size, withMentions.node("paragraph")).setMeta("tidy", true).setMeta(suggestKeyForTest, { applied: true }) : null),
+    });
+    const doc = withMentions.node("doc", null, [withMentions.node("paragraph", null, [withMentions.text("Hi there")])]);
+    const refused: Refusal[] = [];
+    let state = EditorState.create({ schema: withMentions, doc, plugins: [tidy, suggestPlugin((w) => refused.push(w))] });
+    state = state.apply(setSuggesting(state, true, ana));
+    const mention = withMentions.node("mention", { kind: "person", id: "u1", entity: null }, [withMentions.text("@Ben")]);
+    const after = state.apply(state.tr.insert(4, mention));
+    await Promise.resolve();
+    expect(refused).toEqual(["block"]);
+    expect(after.doc.firstChild!.eq(doc.firstChild!)).toBe(true);
+    // What the other plugin added stays (this naive one adds a paragraph after the refusal too).
+    expect(after.doc.childCount).toBeGreaterThan(1);
   });
 
   it("is accepted or rejected as a whole", () => {
