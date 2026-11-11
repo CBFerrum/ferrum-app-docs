@@ -14,7 +14,9 @@ interface Counts {
 }
 
 const count = (editor: Editor): Counts => {
-  const c = editor.storage.characterCount as { words: (o?: { node?: unknown }) => number; characters: (o?: { node?: unknown }) => number };
+  const c = editor.storage.characterCount as { words: (o?: { node?: unknown }) => number; characters: (o?: { node?: unknown }) => number } | undefined;
+  // An editor being replaced (another document opened from a link) has no storage left: nothing to count.
+  if (!c || editor.isDestroyed) return { words: 0, chars: 0, selWords: 0, selChars: 0 };
   const { from, to, empty } = editor.state.selection;
   const sel = empty ? null : editor.state.doc.cut(from, to);
   return { words: c.words(), chars: c.characters(), selWords: sel ? c.words({ node: sel }) : 0, selChars: sel ? c.characters({ node: sel }) : 0 };

@@ -1850,13 +1850,13 @@ input.doc-title:focus {
 .doc-body th[data-valign="bottom"] {
   vertical-align: bottom;
 }
-.doc-body table[data-borders="none"] :is(td, th) {
+.doc-body [data-borders="none"] :is(td, th) {
   border-color: transparent;
   outline: 1px dashed color-mix(in srgb, var(--border) 60%, transparent);
   outline-offset: -1px;
 }
 @media print {
-  .doc-body table[data-borders="none"] :is(td, th) {
+  .doc-body [data-borders="none"] :is(td, th) {
     outline: none;
   }
 }
