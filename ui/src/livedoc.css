@@ -1803,3 +1803,29 @@ input.doc-title:focus {
     min-block-size: var(--control-h);
   }
 }
+
+/* The list of keyboard shortcuts. */
+.doc-keys {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .doc-keys {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.doc-keys-group {
+  margin: 0 0 4px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.doc-keys-list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  margin: 0;
+}
+.doc-keys-list dd {
+  margin: 0;
+  text-align: end;
+}

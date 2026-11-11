@@ -60,6 +60,7 @@ import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { DEFAULT_SIZE, FONTS, LINE_HEIGHTS, MAX_SIZE, MIN_SIZE, SIZES, cleanColor, cleanFontFamily, cleanFontSize, cleanLineHeight, cleanSpace, fontStack } from "./format";
 import { Palette, gridKeys } from "./Palette";
 import { Sep, Tip, Tool } from "./Tool";
+import { keyOf } from "./keys";
 
 const STYLES = [
   { id: "p", get label() { return t("Text"); } },
@@ -208,7 +209,7 @@ function SizeControl({ editor, size }: { editor: Editor; size: number | null }) 
   };
   return (
     <div className="doc-size" role="group" aria-label={t("Font size")}>
-      <Tool label={t("Decrease font size")} icon={Minus} keys="Mod-Shift-," disabled={(size ?? DEFAULT_SIZE) <= MIN_SIZE} onClick={() => editor.chain().focus().changeFontSize(-1).run()} />
+      <Tool label={t("Decrease font size")} icon={Minus} keys={keyOf("smaller")} disabled={(size ?? DEFAULT_SIZE) <= MIN_SIZE} onClick={() => editor.chain().focus().changeFontSize(-1).run()} />
       <Tip label={t("Font size")}>
         <input
           className="doc-size-input"
@@ -258,7 +259,7 @@ function SizeControl({ editor, size }: { editor: Editor; size: number | null }) 
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Tool label={t("Increase font size")} icon={Plus} keys="Mod-Shift-." disabled={(size ?? DEFAULT_SIZE) >= MAX_SIZE} onClick={() => editor.chain().focus().changeFontSize(1).run()} />
+      <Tool label={t("Increase font size")} icon={Plus} keys={keyOf("bigger")} disabled={(size ?? DEFAULT_SIZE) >= MAX_SIZE} onClick={() => editor.chain().focus().changeFontSize(1).run()} />
     </div>
   );
 }
@@ -458,8 +459,8 @@ export function Toolbar({
           }>
             {suggesting ? t("Suggesting") : t("Editing")}
           </Drop>
-          <Tool label={t("Undo")} icon={Undo2} keys="Mod-z" disabled={!s.canUndo} onClick={() => run().undo().run()} />
-          <Tool label={t("Redo")} icon={Redo2} keys="Mod-Shift-z" disabled={!s.canRedo} onClick={() => run().redo().run()} />
+          <Tool label={t("Undo")} icon={Undo2} keys={keyOf("undo")} disabled={!s.canUndo} onClick={() => run().undo().run()} />
+          <Tool label={t("Redo")} icon={Redo2} keys={keyOf("redo")} disabled={!s.canRedo} onClick={() => run().redo().run()} />
         </>
       ),
     },
@@ -524,9 +525,9 @@ export function Toolbar({
       keep: true,
       node: (
         <>
-          <Tool label={t("Bold")} icon={Bold} keys="Mod-b" active={s.bold} onClick={() => run().toggleBold().run()} />
-          <Tool label={t("Italic")} icon={Italic} keys="Mod-i" active={s.italic} onClick={() => run().toggleItalic().run()} />
-          <Tool label={t("Underline")} icon={Underline} keys="Mod-u" active={s.underline} onClick={() => run().toggleUnderline().run()} />
+          <Tool label={t("Bold")} icon={Bold} keys={keyOf("bold")} active={s.bold} onClick={() => run().toggleBold().run()} />
+          <Tool label={t("Italic")} icon={Italic} keys={keyOf("italic")} active={s.italic} onClick={() => run().toggleItalic().run()} />
+          <Tool label={t("Underline")} icon={Underline} keys={keyOf("underline")} active={s.underline} onClick={() => run().toggleUnderline().run()} />
           <ColorButton editor={editor} label={t("Text colour")} kind="text" icon={Baseline} current={s.color} noneLabel={t("Automatic")} onPick={(c) => editor.chain().focus().setTextColor(c).run()} />
           <ColorButton editor={editor} label={t("Highlight colour")} kind="highlight" icon={Highlighter} current={s.marker} noneLabel={t("None")} onPick={(c) => editor.chain().focus().setHighlightColor(c).run()} />
         </>
@@ -537,7 +538,7 @@ export function Toolbar({
       keep: true,
       node: (
         <>
-          <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} keys="Mod-Shift-k" active={s.link} onClick={onLink} />
+          <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} keys={keyOf("link")} active={s.link} onClick={onLink} />
           <Tool label={adding ? t("Adding the image…") : t("Image")} icon={ImagePlus} disabled={adding} onClick={pickImages} />
           <TablePicker editor={editor} active={s.table} />
         </>
@@ -548,10 +549,10 @@ export function Toolbar({
       keep: true,
       node: (
         <>
-          <Tool label={t("Align left")} icon={AlignLeft} keys="Mod-Shift-l" active={s.left} onClick={() => run().setTextAlign("left").run()} />
-          <Tool label={t("Center")} icon={AlignCenter} keys="Mod-Shift-e" active={s.center} onClick={() => run().setTextAlign("center").run()} />
-          <Tool label={t("Align right")} icon={AlignRight} keys="Mod-Shift-r" active={s.right} onClick={() => run().setTextAlign("right").run()} />
-          <Tool label={t("Justify")} icon={AlignJustify} keys="Mod-Shift-j" active={s.justify} onClick={() => run().setTextAlign("justify").run()} />
+          <Tool label={t("Align left")} icon={AlignLeft} keys={keyOf("left")} active={s.left} onClick={() => run().setTextAlign("left").run()} />
+          <Tool label={t("Center")} icon={AlignCenter} keys={keyOf("center")} active={s.center} onClick={() => run().setTextAlign("center").run()} />
+          <Tool label={t("Align right")} icon={AlignRight} keys={keyOf("right")} active={s.right} onClick={() => run().setTextAlign("right").run()} />
+          <Tool label={t("Justify")} icon={AlignJustify} keys={keyOf("justify")} active={s.justify} onClick={() => run().setTextAlign("justify").run()} />
           <Drop editor={editor} label={t("Line and paragraph spacing")} content={spacingItems}>
             <ArrowDownUp size={16} aria-hidden />
           </Drop>
@@ -562,14 +563,14 @@ export function Toolbar({
       id: "lists",
       node: (
         <>
-          <Tool label={t("Bulleted list")} icon={List} keys="Mod-Shift-8" active={s.bullet} onClick={() => run().toggleBulletList().run()} />
-          <Tool label={t("Numbered list")} icon={ListOrdered} keys="Mod-Shift-7" active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
-          <Tool label={t("Checklist")} icon={ListChecks} keys="Mod-Shift-9" active={s.task} onClick={() => run().toggleTaskList().run()} />
+          <Tool label={t("Bulleted list")} icon={List} keys={keyOf("bullets")} active={s.bullet} onClick={() => run().toggleBulletList().run()} />
+          <Tool label={t("Numbered list")} icon={ListOrdered} keys={keyOf("numbers")} active={s.ordered} onClick={() => run().toggleOrderedList().run()} />
+          <Tool label={t("Checklist")} icon={ListChecks} keys={keyOf("checklist")} active={s.task} onClick={() => run().toggleTaskList().run()} />
           <Drop editor={editor} label={t("List style")} content={listStyles}>
             <ListStart size={16} aria-hidden />
           </Drop>
-          <Tool label={t("Decrease indent")} icon={IndentDecrease} keys="Mod-[" onClick={() => run().indentLess().run()} />
-          <Tool label={t("Increase indent")} icon={IndentIncrease} keys="Mod-]" onClick={() => run().indentMore().run()} />
+          <Tool label={t("Decrease indent")} icon={IndentDecrease} keys={keyOf("outdent")} onClick={() => run().indentLess().run()} />
+          <Tool label={t("Increase indent")} icon={IndentIncrease} keys={keyOf("indent")} onClick={() => run().indentMore().run()} />
         </>
       ),
     },
@@ -577,11 +578,11 @@ export function Toolbar({
       id: "more-text",
       node: (
         <>
-          <Tool label={t("Strikethrough")} icon={Strikethrough} keys="Mod-Shift-x" active={s.strike} onClick={() => run().toggleStrike().run()} />
-          <Tool label={t("Subscript")} icon={Subscript} keys="Mod-," active={s.sub} onClick={() => run().toggleSubscript().run()} />
-          <Tool label={t("Superscript")} icon={Superscript} keys="Mod-." active={s.sup} onClick={() => run().toggleSuperscript().run()} />
-          <Tool label={t("Code")} icon={Code} keys="Mod-e" active={s.code} onClick={() => run().toggleCode().run()} />
-          <Tool label={t("Clear formatting")} icon={RemoveFormatting} keys="Mod-\" onClick={() => run().clearFormatting().run()} />
+          <Tool label={t("Strikethrough")} icon={Strikethrough} keys={keyOf("strike")} active={s.strike} onClick={() => run().toggleStrike().run()} />
+          <Tool label={t("Subscript")} icon={Subscript} keys={keyOf("subscript")} active={s.sub} onClick={() => run().toggleSubscript().run()} />
+          <Tool label={t("Superscript")} icon={Superscript} keys={keyOf("superscript")} active={s.sup} onClick={() => run().toggleSuperscript().run()} />
+          <Tool label={t("Code")} icon={Code} keys={keyOf("code")} active={s.code} onClick={() => run().toggleCode().run()} />
+          <Tool label={t("Clear formatting")} icon={RemoveFormatting} keys={keyOf("clear")} onClick={() => run().clearFormatting().run()} />
         </>
       ),
     },

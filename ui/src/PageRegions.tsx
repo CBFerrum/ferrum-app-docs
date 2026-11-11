@@ -18,6 +18,7 @@ import { type PageSetup, writeSetup } from "./page";
 import { FIELDS, type Region, fieldLabel, regionExtensions } from "./regions";
 import { Drop } from "./Toolbar";
 import { Tool } from "./Tool";
+import { keyOf } from "./keys";
 
 const LABELS: Record<Region, () => string> = {
   header: () => t("Header"),
@@ -69,9 +70,9 @@ function RegionBar({ editor, doc, setup }: { editor: Editor; doc: Y.Doc; setup: 
   const run = () => editor.chain().focus();
   return (
     <div className="doc-float doc-region-bar" role="toolbar" aria-label={t("Header and footer")}>
-      <Tool label={t("Bold")} icon={Bold} keys="Mod-b" active={s.bold} onClick={() => run().toggleBold().run()} />
-      <Tool label={t("Italic")} icon={Italic} keys="Mod-i" active={s.italic} onClick={() => run().toggleItalic().run()} />
-      <Tool label={t("Underline")} icon={Underline} keys="Mod-u" active={s.underline} onClick={() => run().toggleUnderline().run()} />
+      <Tool label={t("Bold")} icon={Bold} keys={keyOf("bold")} active={s.bold} onClick={() => run().toggleBold().run()} />
+      <Tool label={t("Italic")} icon={Italic} keys={keyOf("italic")} active={s.italic} onClick={() => run().toggleItalic().run()} />
+      <Tool label={t("Underline")} icon={Underline} keys={keyOf("underline")} active={s.underline} onClick={() => run().toggleUnderline().run()} />
       <Tool label={t("Align left")} icon={AlignLeft} active={s.left} onClick={() => run().setTextAlign("left").run()} />
       <Tool label={t("Align centre")} icon={AlignCenter} active={s.center} onClick={() => run().setTextAlign("center").run()} />
       <Tool label={t("Align right")} icon={AlignRight} active={s.right} onClick={() => run().setTextAlign("right").run()} />

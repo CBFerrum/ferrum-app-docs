@@ -81,11 +81,7 @@ export const PageBreak = Node.create({
         },
     };
   },
-  // StarterKit's hard break owns Mod-Enter; in a word processor it is the page break.
-  priority: 1000,
-  addKeyboardShortcuts() {
-    return { "Mod-Enter": () => this.editor.commands.insertPageBreak() };
-  },
+  // Mod-Enter, the page break in a word processor (StarterKit's hard break has it otherwise), is in keys.ts.
 });
 
 // ── table of contents ──
@@ -418,11 +414,6 @@ export const Structure = Extension.create({
           }
           return true;
         },
-    };
-  },
-  addKeyboardShortcuts() {
-    return {
-      "Mod-Alt-f": () => insertFootnoteAndJump(this.editor),
     };
   },
 });
