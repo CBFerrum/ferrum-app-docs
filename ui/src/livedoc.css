@@ -90,19 +90,9 @@ input.doc-title:focus {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  /* A fade on each edge that has more controls behind it (set from the toolbar's scroll position). */
-  --fade-left: 0px;
-  --fade-right: 0px;
-  mask-image: linear-gradient(to right, transparent 0, var(--foreground) var(--fade-left), var(--foreground) calc(100% - var(--fade-right)), transparent 100%); /* only its opacity matters */
 }
 .doc-toolbar::-webkit-scrollbar {
   display: none;
-}
-.doc-toolbar[data-fade-left="1"] {
-  --fade-left: 24px;
-}
-.doc-toolbar[data-fade-right="1"] {
-  --fade-right: 24px;
 }
 .doc-tool {
   display: inline-grid;

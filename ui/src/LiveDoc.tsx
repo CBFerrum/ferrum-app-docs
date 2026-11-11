@@ -623,26 +623,8 @@ function Toolbar({
   const [linking, setLinking] = useState(false);
   const [describing, setDescribing] = useState(false);
   const run = () => editor.chain().focus();
-  // The toolbar scrolls inside itself on a narrow screen: a fade at each edge that has more behind it.
-  const bar = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = bar.current;
-    if (!el) return;
-    const edges = () => {
-      const max = el.scrollWidth - el.clientWidth;
-      const rtl = getComputedStyle(el).direction === "rtl";
-      const left = rtl ? max + el.scrollLeft : el.scrollLeft;
-      el.dataset.fadeLeft = left > 1 ? "1" : "0";
-      el.dataset.fadeRight = max - left > 1 ? "1" : "0";
-    };
-    edges();
-    el.addEventListener("scroll", edges, { passive: true });
-    const watch = new ResizeObserver(edges);
-    watch.observe(el);
-    return () => (el.removeEventListener("scroll", edges), watch.disconnect());
-  });
   return (
-    <div ref={bar} className={`doc-toolbar${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
+    <div className={`doc-toolbar scroll-cue${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
       <label className="sr-only" htmlFor="doc-mode">
         {t("Mode")}
       </label>
