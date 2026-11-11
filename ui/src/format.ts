@@ -18,6 +18,9 @@ import { Superscript } from "@tiptap/extension-superscript";
 import { TextStyle } from "@tiptap/extension-text-style";
 import { columnResizing } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/core";
+import type { Node as PMNode } from "@tiptap/pm/model";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 
 // ── colours ──
 
@@ -391,6 +394,39 @@ export const Formatting = Extension.create({
         },
       },
       {
+        types: ["tableCell", "tableHeader"],
+        attributes: {
+          // Where the cell's content sits: top (absent), middle or bottom. Its horizontal place is its paragraphs' alignment, as in Word.
+          verticalAlign: {
+            default: null,
+            parseHTML: (el: HTMLElement) => cleanVAlign(el.getAttribute("data-valign") ?? el.style.verticalAlign),
+            renderHTML: (a: Record<string, unknown>) => (cleanVAlign(a.verticalAlign) ? { "data-valign": cleanVAlign(a.verticalAlign)! } : {}),
+          },
+        },
+      },
+      {
+        types: ["table"],
+        attributes: {
+          // "none": the table is drawn without borders (absent: with them).
+          borders: {
+            default: null,
+            parseHTML: (el: HTMLElement) => (el.getAttribute("data-borders") === "none" ? "none" : null),
+            renderHTML: (a: Record<string, unknown>) => (a.borders === "none" ? { "data-borders": "none" } : {}),
+          },
+        },
+      },
+      {
+        types: ["orderedList"],
+        attributes: {
+          // Numbering goes on from the numbered list before it at the same depth (its `start` is then ignored).
+          continues: {
+            default: null,
+            parseHTML: (el: HTMLElement) => (el.hasAttribute("data-continues") ? true : null),
+            renderHTML: (a: Record<string, unknown>) => (a.continues === true ? { "data-continues": "" } : {}),
+          },
+        },
+      },
+      {
         types: ["bulletList"],
         attributes: {
           bullet: {
@@ -465,7 +501,49 @@ export const Formatting = Extension.create({
     };
   },
   // Its keys are in keys.ts, with every other shortcut.
+  addProseMirrorPlugins() {
+    return [listNumbersPlugin()];
+  },
 });
+
+/** A cell's vertical place: middle or bottom (top is the default, stored as nothing). */
+export const cleanVAlign = (v: unknown): "middle" | "bottom" | null => (v === "middle" || v === "bottom" ? v : null);
+
+/** The number each numbered list starts at, a list that continues taking up where the one before it at its depth
+ *  ended. Lists that do not continue keep their own `start`. */
+export function listNumbers(doc: PMNode): Map<number, number> {
+  const next = new Map<number, number>();
+  const out = new Map<number, number>();
+  doc.descendants((node, pos) => {
+    if (node.type.name !== "orderedList") return true;
+    const depth = doc.resolve(pos).depth;
+    const own = Number.isInteger(node.attrs.start) && (node.attrs.start as number) >= 0 ? (node.attrs.start as number) : 1;
+    const first = node.attrs.continues === true && next.has(depth) ? next.get(depth)! : own;
+    out.set(pos, first);
+    next.set(depth, first + node.childCount);
+    return true;
+  });
+  return out;
+}
+
+/** Draws continued numbering: each list that continues gets its first number on the page. */
+export function listNumbersPlugin(): Plugin {
+  const draw = (view: EditorView) => {
+    for (const [pos, n] of listNumbers(view.state.doc)) {
+      const node = view.state.doc.nodeAt(pos);
+      if (node?.attrs.continues !== true) continue;
+      const el = view.nodeDOM(pos);
+      if (el instanceof HTMLOListElement && el.start !== n) el.start = n;
+    }
+  };
+  return new Plugin({
+    key: new PluginKey("docListNumbers"),
+    view(view) {
+      queueMicrotask(() => !view.isDestroyed && draw(view));
+      return { update: (v) => draw(v) };
+    },
+  });
+}
 
 /** A cell's pasted colour: Word writes `background:#D9E2F3` or `bgcolor`; white is no colour. */
 function pastedBackground(el: HTMLElement): string | null {

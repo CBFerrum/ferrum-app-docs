@@ -5,13 +5,15 @@
 
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
-import { Captions, Columns3, ImageUp, Maximize2, PaintBucket, PanelLeft, PanelRight, PanelTop, Rows3, TableCellsMerge, TableCellsSplit, Trash2, AlignCenter, AlignLeft, AlignRight } from "lucide-react";
+import { AlignVerticalJustifyCenter, CalendarDays, Captions, Columns3, Grid2x2, ListTree, ImageUp, Maximize2, PaintBucket, PanelLeft, PanelRight, PanelTop, Rows3, TableCellsMerge, TableCellsSplit, Trash2, AlignCenter, AlignLeft, AlignRight } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { NodeSelection } from "@tiptap/pm/state";
 import { t } from "@ferrum/client";
 import { Button, Dialog, Field } from "@ferrum/kit";
-import { DropdownMenuItem, Popover, PopoverContent, PopoverTrigger } from "@ferrum/kit/primitives";
-import { cleanColor } from "./format";
+import { DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, Popover, PopoverContent, PopoverTrigger } from "@ferrum/kit/primitives";
+import { cleanColor, cleanVAlign } from "./format";
+import { cleanDate, dateText } from "./chips";
+import { MAX_LEVELS } from "./pages";
 import { type ImageAlign, IMAGE_TYPES, imageFiles } from "./image";
 import { Drop, ColorButton } from "./Toolbar";
 import { Tip, Tool } from "./Tool";
@@ -75,7 +77,11 @@ export function TableBar({ editor }: { editor: Editor }) {
       const { $from } = e.state.selection;
       let header = false;
       for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === "table") header = $from.node(d).firstChild?.firstChild?.type.name === "tableHeader";
-      return { on: e.isActive("table"), header, merge: e.can().mergeCells(), split: e.can().splitCell(), fill: cleanColor(e.getAttributes("tableCell").background ?? e.getAttributes("tableHeader").background) };
+      let borders = true;
+      for (let d = $from.depth; d > 0; d--) if ($from.node(d).type.name === "table") borders = $from.node(d).attrs.borders !== "none";
+      const cell = e.isActive("tableHeader") ? e.getAttributes("tableHeader") : e.getAttributes("tableCell");
+      const align = e.isActive({ textAlign: "center" }) ? "center" : e.isActive({ textAlign: "right" }) ? "right" : "left";
+      return { on: e.isActive("table"), header, borders, align, valign: cleanVAlign(cell.verticalAlign) ?? "top", merge: e.can().mergeCells(), split: e.can().splitCell(), fill: cleanColor(cell.background) };
     },
   });
   if (!s.on || !place) return null;
@@ -117,6 +123,28 @@ export function TableBar({ editor }: { editor: Editor }) {
       <Tool label={t("Split cell")} icon={TableCellsSplit} disabled={!s.split} onClick={() => run().splitCell().run()} />
       <Tool label={t("Header row")} icon={PanelTop} active={s.header} onClick={() => run().toggleHeaderRow().run()} />
       <ColorButton editor={editor} label={t("Cell colour")} kind="cell" icon={PaintBucket} current={s.fill} noneLabel={t("No fill")} onPick={(c) => run().setCellBackground(c).run()} />
+      <Drop
+        editor={editor}
+        label={t("Cell alignment")}
+        content={
+          <>
+            <DropdownMenuRadioGroup value={s.align} onValueChange={(v) => run().setTextAlign(v).run()}>
+              <DropdownMenuRadioItem value="left">{t("Align left")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="center">{t("Center")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="right">{t("Align right")}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup value={s.valign} onValueChange={(v) => run().setCellAttribute("verticalAlign", cleanVAlign(v)).run()}>
+              <DropdownMenuRadioItem value="top">{t("Top")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="middle">{t("Middle")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="bottom">{t("Bottom")}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </>
+        }
+      >
+        <AlignVerticalJustifyCenter size={16} aria-hidden />
+      </Drop>
+      <Tool label={t("Borders")} icon={Grid2x2} active={s.borders} onClick={() => run().updateAttributes("table", { borders: s.borders ? "none" : null }).run()} />
       <span className="doc-sep" aria-hidden />
       <Tool label={t("Delete the table")} icon={Trash2} danger onClick={() => run().deleteTable().run()} />
     </Bar>
@@ -252,6 +280,59 @@ export function ImageBar({ editor, file }: { editor: Editor; file: string }) {
         }}
       />
       {describing && <DescribeDialog editor={editor} onClose={() => setDescribing(false)} />}
+    </Bar>
+  );
+}
+
+const selectedOf = (name: string) => (e: Editor) => {
+  const sel = e.state.selection;
+  return sel instanceof NodeSelection && sel.node.type.name === name ? (e.view.nodeDOM(sel.from) as HTMLElement | null) : null;
+};
+const dateElement = selectedOf("dateChip");
+const contentsElement = selectedOf("tableOfContents");
+
+/** A selected date chip: its date, to change. */
+export function DateBar({ editor }: { editor: Editor }) {
+  const place = usePlace(editor, dateElement);
+  const date = useEditorState({ editor, selector: ({ editor: e }) => (dateElement(e) ? cleanDate(e.getAttributes("dateChip").date) : null) });
+  if (!place || !date) return null;
+  return (
+    <Bar place={place} label={t("Date")}>
+      <CalendarDays size={16} aria-hidden className="doc-bar-icon" />
+      <label className="sr-only" htmlFor="doc-date-pick">
+        {t("Date")}
+      </label>
+      <input id="doc-date-pick" type="date" className="input input-sm" value={date} onChange={(e) => cleanDate(e.target.value) && editor.chain().setDate(e.target.value).run()} />
+      <span className="faint doc-bar-note">{dateText(date)}</span>
+    </Bar>
+  );
+}
+
+/** A selected contents block: how deep a heading it lists. */
+export function ContentsBar({ editor }: { editor: Editor }) {
+  const place = usePlace(editor, contentsElement);
+  const levels = useEditorState({ editor, selector: ({ editor: e }) => (contentsElement(e) ? (e.getAttributes("tableOfContents").levels as number) : null) });
+  if (!place || !levels) return null;
+  return (
+    <Bar place={place} label={t("Contents")}>
+      <Drop
+        editor={editor}
+        label={t("Headings listed")}
+        value={t("Down to heading {level}", { level: levels })}
+        className="doc-drop-text"
+        content={
+          <DropdownMenuRadioGroup value={String(levels)} onValueChange={(v) => editor.chain().focus().updateAttributes("tableOfContents", { levels: Number(v) }).run()}>
+            {Array.from({ length: MAX_LEVELS }, (_, i) => (
+              <DropdownMenuRadioItem key={i} value={String(i + 1)}>
+                {t("Down to heading {level}", { level: i + 1 })}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        }
+      >
+        <ListTree size={16} aria-hidden /> {t("Down to heading {level}", { level: levels })}
+      </Drop>
+      <Tool label={t("Delete the contents")} icon={Trash2} danger onClick={() => editor.chain().focus().deleteSelection().run()} />
     </Bar>
   );
 }

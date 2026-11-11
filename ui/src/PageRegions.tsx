@@ -27,7 +27,13 @@ const LABELS: Record<Region, () => string> = {
   firstFooter: () => t("First page footer"),
 };
 
-export function PageRegion({ doc, name, editable, setup }: { doc: Y.Doc; name: Region; editable: boolean; setup: PageSetup }) {
+/** With a different first page: which of the pair the page shows here, and the switch between them. */
+export interface Pair {
+  first: boolean;
+  set: (first: boolean) => void;
+}
+
+export function PageRegion({ doc, name, editable, setup, pair }: { doc: Y.Doc; name: Region; editable: boolean; setup: PageSetup; pair?: Pair }) {
   const label = LABELS[name]();
   const [focused, setFocused] = useState(false);
   const root = useRef<HTMLDivElement>(null);
@@ -51,11 +57,21 @@ export function PageRegion({ doc, name, editable, setup }: { doc: Y.Doc; name: R
   }, [editor, editable]);
   const empty = useEditorState({ editor, selector: ({ editor: e }) => !e || e.isEmpty }) ?? true;
   // A reader has no use for an empty region.
-  if (!editable && empty) return null;
+  if (!editable && empty && !pair) return null;
   const footer = name === "footer" || name === "firstFooter";
   return (
     <div ref={root} className={`doc-region doc-region-${footer ? "footer" : "header"}${name.startsWith("first") ? " doc-region-first" : ""}`} data-region={name}>
       {editable && <span className="doc-region-label">{label}</span>}
+      {pair && (
+        <div className="doc-region-pair" role="group" aria-label={footer ? t("Which footer") : t("Which header")}>
+          <button type="button" className="doc-region-pick" aria-pressed={pair.first} onClick={() => pair.set(true)}>
+            {t("First page")}
+          </button>
+          <button type="button" className="doc-region-pick" aria-pressed={!pair.first} onClick={() => pair.set(false)}>
+            {t("Other pages")}
+          </button>
+        </div>
+      )}
       {editable && focused && editor && <RegionBar editor={editor} doc={doc} setup={setup} />}
       <EditorContent editor={editor} />
     </div>

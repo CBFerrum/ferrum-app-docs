@@ -8,6 +8,7 @@ import { TableKit } from "@tiptap/extension-table";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Callouts } from "./callout";
+import { DateChip } from "./chips";
 import { formattingExtensions } from "./format";
 import { DocImage } from "./image";
 import { Mention } from "./mention";
@@ -34,5 +35,6 @@ export function documentExtensions(file: string): AnyExtension[] {
     SuggestionAttrs,
     Callouts,
     Mention,
+    DateChip,
   ];
 }

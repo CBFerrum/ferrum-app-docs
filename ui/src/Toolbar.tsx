@@ -46,6 +46,7 @@ import { isolate, t } from "@ferrum/client";
 import { Button, Dialog, Field } from "@ferrum/kit";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -107,6 +108,8 @@ function selectionState(e: Editor) {
     inList,
     bulletStyle: (e.getAttributes("bulletList").bullet as string | null) ?? "disc",
     numberStyle: (e.getAttributes("orderedList").type as string | null) ?? "1",
+    continues: e.getAttributes("orderedList").continues === true,
+    start: Number(e.getAttributes("orderedList").start) || 1,
     quote: e.isActive("blockquote"),
     callout: e.isActive("blockquote") ? calloutKind(e.getAttributes("blockquote").callout) : null,
     codeBlock: e.isActive("codeBlock"),
@@ -362,6 +365,36 @@ function SpacingDialog({ editor, sel, onClose }: { editor: Editor; sel: Sel; onC
   );
 }
 
+/** Where a numbered list starts (it stops continuing the one before). */
+function NumberingDialog({ editor, start, onClose }: { editor: Editor; start: number; onClose: () => void }) {
+  const [value, setValue] = useState(String(start));
+  const n = Number(value);
+  const ok = Number.isInteger(n) && n >= 0 && n <= 9999;
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    if (!ok) return;
+    editor.chain().focus().updateAttributes("orderedList", { start: n, continues: null }).run();
+    onClose();
+  };
+  const footer: ReactNode = (
+    <>
+      <Button onClick={onClose}>{t("Cancel")}</Button>
+      <Button variant="primary" type="submit" form="doc-numbering-form" disabled={!ok}>
+        {t("Apply")}
+      </Button>
+    </>
+  );
+  return (
+    <Dialog open onClose={onClose} title={t("Restart numbering")} footer={footer}>
+      <form id="doc-numbering-form" onSubmit={save}>
+        <Field label={t("Start at")} htmlFor="doc-numbering-start" error={ok ? undefined : t("Use a whole number from 0 to 9999")}>
+          <input id="doc-numbering-start" className="input" inputMode="numeric" dir="ltr" value={value} onChange={(e) => setValue(e.target.value)} data-autofocus />
+        </Field>
+      </form>
+    </Dialog>
+  );
+}
+
 /** What fills the controls of the row, as the groups the row divides into (first to last: the order a
  *  group leaves for "More" is last first). `keep` groups never leave. */
 interface Group {
@@ -392,6 +425,7 @@ export function Toolbar({
 }) {
   const s = useEditorState({ editor, selector: ({ editor: e }) => selectionState(e) });
   const [spacing, setSpacing] = useState(false);
+  const [numbering, setNumbering] = useState(false);
   const run = () => editor.chain().focus();
   const bar = useRef<HTMLDivElement>(null);
   const [fitting, setFitting] = useState<number | null>(null);
@@ -442,6 +476,13 @@ export function Toolbar({
           {t("i. ii. iii.")}
         </DropdownMenuRadioItem>
       </DropdownMenuRadioGroup>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem disabled={!s.ordered} onSelect={() => setNumbering(true)}>
+        {t("Restart numbering at…")}
+      </DropdownMenuItem>
+      <DropdownMenuCheckboxItem disabled={!s.ordered} checked={s.continues} onCheckedChange={(on) => run().updateAttributes("orderedList", { continues: on ? true : null }).run()}>
+        {t("Continue numbering")}
+      </DropdownMenuCheckboxItem>
     </>
   );
 
@@ -728,6 +769,7 @@ export function Toolbar({
         </div>
       )}
       {spacing && <SpacingDialog editor={editor} sel={s} onClose={() => setSpacing(false)} />}
+      {numbering && <NumberingDialog editor={editor} start={s.start} onClose={() => setNumbering(false)} />}
     </div>
   );
 }
