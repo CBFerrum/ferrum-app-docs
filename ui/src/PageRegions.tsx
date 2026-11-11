@@ -8,7 +8,7 @@ import { Collaboration } from "@tiptap/extension-collaboration";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import { AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { t } from "@ferrum/client";
 import { Button } from "@ferrum/kit";
@@ -29,6 +29,7 @@ const LABELS: Record<Region, () => string> = {
 export function PageRegion({ doc, name, editable, setup }: { doc: Y.Doc; name: Region; editable: boolean; setup: PageSetup }) {
   const label = LABELS[name]();
   const [focused, setFocused] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   const editor = useEditor(
     {
       editable,
@@ -39,7 +40,7 @@ export function PageRegion({ doc, name, editable, setup }: { doc: Y.Doc; name: R
       onBlur: ({ event }) => {
         // Pressing a button of the region's own bar leaves the text but not the region.
         const next = (event as FocusEvent | undefined)?.relatedTarget as HTMLElement | null;
-        if (!next?.closest?.(".doc-region")) setFocused(false);
+        if (!next || !(root.current?.contains(next) || next.closest("[role=menu]"))) setFocused(false);
       },
     },
     [doc, name],
@@ -52,7 +53,7 @@ export function PageRegion({ doc, name, editable, setup }: { doc: Y.Doc; name: R
   if (!editable && empty) return null;
   const footer = name === "footer" || name === "firstFooter";
   return (
-    <div className={`doc-region doc-region-${footer ? "footer" : "header"}${name.startsWith("first") ? " doc-region-first" : ""}`} data-region={name}>
+    <div ref={root} className={`doc-region doc-region-${footer ? "footer" : "header"}${name.startsWith("first") ? " doc-region-first" : ""}`} data-region={name}>
       {editable && <span className="doc-region-label">{label}</span>}
       {editable && focused && editor && <RegionBar editor={editor} doc={doc} setup={setup} />}
       <EditorContent editor={editor} />

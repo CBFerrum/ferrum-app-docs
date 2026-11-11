@@ -159,12 +159,22 @@ export function DocsPage() {
     setBusy("import");
     const made: { id: string }[] = [];
     try {
-      const { importFile } = await import("./importing");
+      const { importFile, fillDocument } = await import("./importing");
       for (const f of files) {
         try {
           const doc = await importFile(f);
-          made.push(await act("create_document", { title: doc.title, markdown: doc.markdown, ...(folderId ? { folder: folderId } : {}) }));
-          for (const note of doc.notes) toast(`“${f.name}”: ${note}`, "info");
+          const id = await act("create_document", { title: doc.title, markdown: doc.markdown, ...(folderId ? { folder: folderId } : {}) });
+          made.push(id);
+          const more = doc.docx ? await fillDocument(id.id, doc.docx) : [];
+          // What was not carried over, as a list the person sees (never silently).
+          const all = [...doc.notes, ...more];
+          if (all.length)
+            void confirmDialog({
+              title: tr("“{name}” was imported: some of it was not carried over", { name: f.name }),
+              message: <ul>{all.map((n) => <li key={n}>{n}</li>)}</ul>,
+              confirmLabel: tr("OK"),
+              noCancel: true,
+            });
         } catch (e) {
           toast(tr("“{name}” was not imported. {e}", { name: f.name, e: errorMessage(e) }), "error");
         }
