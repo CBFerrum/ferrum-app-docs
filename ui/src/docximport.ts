@@ -604,16 +604,15 @@ export async function convertDocx(bytes: Uint8Array): Promise<Converted> {
 
   // What was not carried.
   const n = reader.notes;
-  const count = (num: number, one: string, many: string) => (num === 1 ? one : tr(many, { n: num }));
   const commentCount = comments ? elements(parseXml(comments), "w:comment").length : 0;
-  if (commentCount) notesList.push(count(commentCount, tr("1 comment was not carried: Docs documents keep comments on the page, not in the file."), "{n} comments were not carried: Docs documents keep comments on the page, not in the file."));
-  if (n.deletions) notesList.push(count(n.deletions, tr("1 tracked deletion: the deleted words were left out and the inserted words kept."), "{n} tracked deletions: the deleted words were left out and the inserted words kept."));
-  if (n.textBoxes) notesList.push(count(n.textBoxes, tr("1 text box was left out."), "{n} text boxes were left out."));
-  if (n.shapes) notesList.push(count(n.shapes, tr("1 drawing shape was left out."), "{n} drawing shapes were left out."));
-  if (n.equations) notesList.push(count(n.equations, tr("1 equation was left out."), "{n} equations were left out."));
-  if (n.charts) notesList.push(count(n.charts, tr("1 chart or diagram was left out."), "{n} charts or diagrams were left out."));
-  if (n.picturesLost) notesList.push(count(n.picturesLost, tr("1 picture could not be read and was left out."), "{n} pictures could not be read and were left out."));
-  if (n.internalLinks) notesList.push(count(n.internalLinks, tr("1 link to a place inside the document was kept as plain text."), "{n} links to places inside the document were kept as plain text."));
+  if (commentCount) notesList.push(commentCount === 1 ? tr("1 comment was not carried: Docs documents keep comments on the page, not in the file.") : tr("{n} comments were not carried: Docs documents keep comments on the page, not in the file.", { n: commentCount }));
+  if (n.deletions) notesList.push(n.deletions === 1 ? tr("1 tracked deletion: the deleted words were left out and the inserted words kept.") : tr("{n} tracked deletions: the deleted words were left out and the inserted words kept.", { n: n.deletions }));
+  if (n.textBoxes) notesList.push(n.textBoxes === 1 ? tr("1 text box was left out.") : tr("{n} text boxes were left out.", { n: n.textBoxes }));
+  if (n.shapes) notesList.push(n.shapes === 1 ? tr("1 drawing shape was left out.") : tr("{n} drawing shapes were left out.", { n: n.shapes }));
+  if (n.equations) notesList.push(n.equations === 1 ? tr("1 equation was left out.") : tr("{n} equations were left out.", { n: n.equations }));
+  if (n.charts) notesList.push(n.charts === 1 ? tr("1 chart or diagram was left out.") : tr("{n} charts or diagrams were left out.", { n: n.charts }));
+  if (n.picturesLost) notesList.push(n.picturesLost === 1 ? tr("1 picture could not be read and was left out.") : tr("{n} pictures could not be read and were left out.", { n: n.picturesLost }));
+  if (n.internalLinks) notesList.push(n.internalLinks === 1 ? tr("1 link to a place inside the document was kept as plain text.") : tr("{n} links to places inside the document were kept as plain text.", { n: n.internalLinks }));
   if (n.columns) notesList.push(tr("The page has columns: the text is in one column."));
   if (n.sections > 1) notesList.push(tr("The document has several sections: the page setup of the last one applies to all, and each section break became a page break."));
   if (!content.length && !Object.keys(regions).length) throw new Error(tr("This Word document has no text to import."));
