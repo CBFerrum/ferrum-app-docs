@@ -35,8 +35,8 @@ import {
 } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { api, download, errorMessage, initials, openPrint, saveBlob, shell, t, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, Dialog, EmptyState, Field, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
+import { ApiError, api, download, errorMessage, initials, openPrint, saveBlob, shell, t, isolate } from "@ferrum/client";
+import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CALLOUTS, type CalloutKind, calloutKind } from "./callout";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
@@ -109,6 +109,15 @@ export function statusText(s: Pick<CoeditState, "online" | "loaded" | "unsaved" 
   return s.unsaved ? t("Saving…") : t("Saved");
 }
 
+/** The kit's save state for what the bar says, or null where the bar says something else (not
+ *  connected, opening, reconnecting). Only "saved" once the server has stored everything; changes
+ *  kept in this browser are "local", and changes held only in this tab are just unsaved. */
+export function saveState(s: Pick<CoeditState, "online" | "loaded" | "unsaved" | "closed">, keeps = false): SaveState | null {
+  if (s.closed || !s.loaded) return null;
+  if (!s.online) return s.unsaved ? (keeps ? "local" : "draft") : null;
+  return s.unsaved ? "saving" : "saved";
+}
+
 export function LiveDocPage() {
   const { file } = useParams();
   const [session, setSession] = useState<CoeditSession | null>(null);
@@ -129,13 +138,16 @@ export function LiveDocPage() {
   });
   if (info.error) {
     return (
-      <EmptyState title={t("This document cannot be opened")} icon="file">
-        <p className="muted">{isolate(errorMessage(info.error))}</p>
-        <a href="/drive/">{t("Go to Drive")}</a>
-      </EmptyState>
+      <StatePanel
+        kind={info.error instanceof ApiError && info.error.status === 403 ? "denied" : "failed"}
+        title={t("This document cannot be opened")}
+        error={info.error}
+        onRetry={() => void info.refetch()}
+        action={<a href="/drive/">{t("Go to Drive")}</a>}
+      />
     );
   }
-  if (!file || !session || !info.data) return <Spinner label={t("Opening the document")} />;
+  if (!file || !session || !info.data) return <ReaderSkeleton />;
   return <LiveDoc key={file} file={file} session={session} info={info.data} />;
 }
 
@@ -189,6 +201,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         Find,
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
         Collaboration.configure({ document: session.doc, field: "default" }),
+        // ui-lint-allow raw-color: fallback for a collaborator's own (server-chosen) cursor colour
         CollaborationCaret.configure({ provider: session, user: { name: "", color: "#64748b" } }),
       ],
       editorProps: {
@@ -396,9 +409,15 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           </a>
         )}
         <Title name={info.name} canRename={canEdit && !!space.data} rename={(name) => act("rename", { item: file, name }).then(() => qc.invalidateQueries({ queryKey: ["drive"] }))} />
-        <span className="doc-status" role="status" aria-live="polite">
-          {isolate(statusText(state, session.keeps))}
-        </span>
+        {saveState(state, session.keeps) ? (
+          <span title={statusText(state, session.keeps)}>
+            <SaveStatus state={saveState(state, session.keeps)!} />
+          </span>
+        ) : (
+          <span className="doc-status" role="status" aria-live="polite">
+            {isolate(statusText(state, session.keeps))}
+          </span>
+        )}
         {state.loaded && state.access === "read" && <Badge>{t("View only")}</Badge>}
         <People people={here} />
         <div className="doc-bar-end">
@@ -452,7 +471,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       <div className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
         {editor && tocShown && <Contents editor={editor} onHide={() => showContents(false)} />}
         <div className="doc-paper">
-          {!state.loaded && !state.closed && <Spinner label={t("Loading the document")} />}
+          {!state.loaded && !state.closed && <ReaderSkeleton />}
           <EditorContent editor={editor} hidden={!state.loaded} />
           {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
         </div>
@@ -605,7 +624,7 @@ function Toolbar({
   const [describing, setDescribing] = useState(false);
   const run = () => editor.chain().focus();
   return (
-    <div className={`doc-toolbar${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
+    <div className={`doc-toolbar scroll-cue${suggesting ? " is-suggesting" : ""}`} role="toolbar" aria-label={t("Formatting")}>
       <label className="sr-only" htmlFor="doc-mode">
         {t("Mode")}
       </label>

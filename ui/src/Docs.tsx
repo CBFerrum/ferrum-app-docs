@@ -9,10 +9,11 @@ import { FileText, Folder, MoreHorizontal, Star, Upload } from "lucide-react";
 import { type DragEvent, type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { api, errorMessage, formatDateTime, relativeTime, shell, t as tr, isolate } from "@ferrum/client";
-import { Badge, EmptyState, ErrorState, FamilyNav, Icon, Menu, MenuItem, Spinner, confirmDialog, toast, useCanIntent, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
+import { Badge, FamilyNav, Icon, ListSkeleton, Menu, MenuItem, StatePanel, confirmDialog, toast, useCanIntent, useDebounced, useLiveEntity, useShellTitle } from "@ferrum/kit";
 import { can, useMe, useMetaIndex, usePeople } from "@ferrum/records";
 import { CHANGES, type DocItem, OWNERS, SORTS, VIEWS, carriesFiles, changedFrom, isDocument, isFolder, narrow, ordered, ownerName, pick } from "./docslist";
 import { allows, docTitle, snippetParts } from "./livedocs";
+import { LoadFailed } from "./states";
 import { presenceLabel, useFilesPresence } from "./presence";
 import "./docs.css";
 
@@ -377,7 +378,7 @@ export function DocsPage() {
             <div className="docs-chips" role="group" aria-label={tr("Narrow the list")}>
               <label className="docs-chip">
                 <span>{tr("Owner")}</span>
-                <select value={owner} onChange={(e) => set({ owner: e.target.value === "any" ? null : e.target.value }, true)}>
+                <select className="select" value={owner} onChange={(e) => set({ owner: e.target.value === "any" ? null : e.target.value }, true)}>
                   {OWNERS.map((o) => (
                     <option key={o.id} value={o.id}>
                       {isolate(o.label)}
@@ -387,7 +388,7 @@ export function DocsPage() {
               </label>
               <label className="docs-chip">
                 <span>{tr("Changed")}</span>
-                <select value={changed} onChange={(e) => set({ changed: e.target.value === "any" ? null : e.target.value }, true)}>
+                <select className="select" value={changed} onChange={(e) => set({ changed: e.target.value === "any" ? null : e.target.value }, true)}>
                   {CHANGES.map((o) => (
                     <option key={o.id} value={o.id}>
                       {isolate(o.label)}
@@ -397,7 +398,7 @@ export function DocsPage() {
               </label>
               <label className="docs-chip">
                 <span>{tr("Order")}</span>
-                <select value={sort} onChange={(e) => set({ sort: e.target.value === "default" ? null : e.target.value }, true)}>
+                <select className="select" value={sort} onChange={(e) => set({ sort: e.target.value === "default" ? null : e.target.value }, true)}>
                   {SORTS.map((o) => (
                     <option key={o.id} value={o.id}>
                       {isolate(o.label)}
@@ -408,21 +409,17 @@ export function DocsPage() {
             </div>
           </div>
           {docs.error ? (
-            <ErrorState error={docs.error} title={tr("Documents are not available")} onRetry={() => void docs.refetch()} />
+            <LoadFailed error={docs.error} title={tr("Documents are not available")} onRetry={() => void docs.refetch()} />
           ) : !docs.data ? (
-            <Spinner label={tr("Loading documents")} />
+            <ListSkeleton rows={6} />
           ) : !rows.length ? (
-            <EmptyState title={emptyTitle} icon="file">
-              {query || filtered ? (
-                <button type="button" className="btn btn-default btn-sm" onClick={clear}>
-                  {tr("Clear the search and choices")}
-                </button>
-              ) : view === "starred" && !folderId ? (
-                <p className="muted">{tr("Star a document to find it here again.")}</p>
-              ) : mayCreate ? (
-                <p className="muted">{tr("Start one above, blank, from a template or from a file.")}</p>
-              ) : null}
-            </EmptyState>
+            query || filtered ? (
+              <StatePanel kind="no-matches" title={emptyTitle} onClear={clear} />
+            ) : (
+              <StatePanel kind="empty" title={emptyTitle}>
+                {view === "starred" && !folderId ? tr("Star a document to find it here again.") : mayCreate ? tr("Start one above, blank, from a template or from a file.") : null}
+              </StatePanel>
+            )
           ) : (
             <>
               <ul className="docs-list" aria-label={heading}>
@@ -559,6 +556,6 @@ export function NewDocument() {
     if (ahead) document.addEventListener("prerenderingchange", () => void start(), { once: true });
     else void start();
   }, [navigate]);
-  if (error) return <ErrorState error={error} title={tr("The document could not be started")} />;
-  return <Spinner label={tr("Starting a document")} />;
+  if (error) return <LoadFailed error={error} title={tr("The document could not be started")} />;
+  return <StatePanel kind="loading" title={tr("Starting a document")} />;
 }
