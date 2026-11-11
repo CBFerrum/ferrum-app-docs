@@ -1054,6 +1054,16 @@ input.doc-title:focus {
 .doc-tools:empty {
   display: none;
 }
+/* Above the on-screen keyboard (LiveDoc.tsx useKeyboardDock). */
+.doc-tools.is-docked {
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--dock-bottom, 0);
+  z-index: 30;
+  padding: 4px 8px;
+  background: var(--surface);
+  box-shadow: 0 -1px 0 var(--border);
+}
 
 /* Find and replace: the bar, and the matches marked in the text. */
 .doc-find {
