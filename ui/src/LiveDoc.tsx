@@ -314,7 +314,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   }, []);
   useEffect(() => {
     if (!editor || !editable || !state.loaded || !isUnset(session.doc) || session.doc.getXmlFragment("default").length > 0) return;
-    const lang = document.documentElement.lang || navigator.language || "en";
+    const lang = navigator.language || document.documentElement.lang || "en";
     writeSetup(session.doc, { size: paperFor(lang), orientation: "portrait", ...PRESETS.normal, differentFirst: false });
   }, [editor, editable, state.loaded, session.doc]);
   const [pageW, pageH] = dims(setup).map(toPx) as [number, number];
@@ -336,7 +336,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       editor.off("update", check);
     };
   }, [editor, editable, session.doc]);
-  const unit = unitFor(document.documentElement.lang || navigator.language || "en");
+  const unit = unitFor(navigator.language || document.documentElement.lang || "en");
   // Drive's lists show who has the file open.
   usePresence(file, state.loaded ? (state.access === "write" ? "edit" : "view") : null);
 

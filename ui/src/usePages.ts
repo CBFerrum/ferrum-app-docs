@@ -29,7 +29,7 @@ export function usePageSetup(doc: Y.Doc): PageSetup {
   );
 }
 
-const locale = () => document.documentElement.lang || navigator.language || "en";
+const locale = () => navigator.language || document.documentElement.lang || "en";
 
 /** Keeps the page's print style (`@page` size, margins, header and footer) made from the setup and the
  *  regions while the document is open, and made again just before printing (the date is today's). */
