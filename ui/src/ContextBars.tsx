@@ -57,7 +57,7 @@ function usePlace(editor: Editor, find: (e: Editor) => HTMLElement | null): Plac
 function Bar({ place, label, children, beside }: { place: Place; label: string; children: ReactNode; beside?: boolean }) {
   const room = beside && place.host - (place.inline + place.width) >= 56;
   return (
-    <div className={`doc-float${room ? " doc-float-beside" : ""}`} role="toolbar" aria-label={label} aria-orientation={room ? "vertical" : "horizontal"} style={room ? { insetBlockStart: Math.max(4, place.top), insetInlineStart: place.inline + place.width + 8 } : { insetBlockStart: Math.max(4, place.top - 44), insetInlineStart: Math.max(0, place.inline) }}>
+    <div className={`doc-float${room ? " doc-float-beside" : place.host < 600 ? " scroll-cue" : ""}`} role="toolbar" aria-label={label} aria-orientation={room ? "vertical" : "horizontal"} style={room ? { insetBlockStart: Math.max(4, place.top), insetInlineStart: place.inline + place.width + 8 } : place.host < 600 ? { insetBlockStart: Math.max(4, place.top - 44), insetInlineStart: 4, insetInlineEnd: 4 } : { insetBlockStart: Math.max(4, place.top - 44), insetInlineStart: Math.max(0, place.inline) }}>
       {children}
     </div>
   );

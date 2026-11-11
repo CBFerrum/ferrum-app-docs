@@ -158,7 +158,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const current = useRef<Editor | null>(null);
   // A suggested paragraph or formatting change needs format 3 at once: a format 2 client would read it as a real change.
   // What the page does for the keys of keys.ts (filled below, once the page's functions exist).
-  const pageKeys = useRef<PageActions>({ link: () => undefined, find: () => undefined, replace: () => undefined, comment: () => undefined, save: () => undefined, help: () => undefined });
+  const pageKeys = useRef<PageActions>({ link: () => undefined, find: () => undefined, replace: () => undefined, comment: () => undefined, save: () => undefined, help: () => undefined, bar: () => undefined });
   const [helping, setHelping] = useState(false);
   const tracked = useRef(() => undefined as void);
   tracked.current = () => stamp(session.doc, 3);
@@ -193,6 +193,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const paper = useRef<HTMLDivElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState(0);
+  const tools = useRef<HTMLDivElement>(null);
+  useKeyboardDock(tools);
 
   const made = useEditor(
     {
@@ -485,6 +487,10 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     comment: startComment,
     save: saveKey,
     help: () => setHelping(true),
+    bar: () => {
+      const target = document.querySelector<HTMLElement>(".doc-float button:not(:disabled), .doc-float input") ?? document.querySelector<HTMLElement>('.doc-toolbar [tabindex="0"]');
+      target?.focus();
+    },
   } as PageActions;
   const showContents = (on: boolean) => {
     setContents(on);
@@ -639,11 +645,20 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         </div>
       </header>
       {state.error && <Alert tone={state.closed ? "error" : "warning"}>{isolate(state.error)}</Alert>}
-      <div className="doc-tools">
+      <div className="doc-tools" ref={tools}>
         {editor && editable && <Toolbar editor={editor} pickImages={pickImages} adding={adding} suggesting={suggesting} setSuggesting={setMode} onLink={() => setLinking(true)} />}
         {editor && finding && state.loaded && <FindBar editor={editor} canReplace={editable} replacing={replacing} setReplacing={setReplacing} focus={findFocus} onClose={() => setFinding(false)} />}
       </div>
-      <div className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}>
+      {/* Escape in a bar over the page, the comments or the contents goes back to the text (menus and dialogs close first). */}
+      <div
+        className={`doc-main${tocShown ? " doc-main-toc" : ""}${railShown ? " doc-main-rail" : ""}`}
+        onKeyDown={(e) => {
+          const el = e.target as HTMLElement;
+          if (e.key !== "Escape" || e.defaultPrevented || !editor || el.closest("[role=menu], [role=dialog], .doc-body, .ProseMirror") || !el.closest(".doc-float, .doc-rail, .doc-toc, .doc-region-pair")) return;
+          e.preventDefault();
+          editor.commands.focus();
+        }}
+      >
         {editor && tocShown && <Contents editor={editor} onHide={() => showContents(false)} />}
         {!compat.ok ? (
           <NewerFormat download={(f) => void exportAs(f)} />
@@ -745,6 +760,34 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     </div>
     </Tips>
   );
+}
+
+/** On a touch screen with the on-screen keyboard up (the visual viewport shorter than the window), the toolbar sits
+ *  just above the keyboard, where the thumb is, instead of at the top of a page the keyboard has pushed away. */
+function useKeyboardDock(ref: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    const el = ref.current;
+    if (!vv || !el || !window.matchMedia("(pointer: coarse)").matches) return;
+    const place = () => {
+      const typing = !!document.activeElement?.closest(".doc-body");
+      const keyboard = window.innerHeight - vv.height > 120;
+      el.classList.toggle("is-docked", typing && keyboard);
+      // Its bottom on the keyboard's top: the layout viewport's height less what the visual viewport shows.
+      if (typing && keyboard) el.style.setProperty("--dock-bottom", `${Math.max(0, Math.round(window.innerHeight - vv.offsetTop - vv.height))}px`);
+    };
+    vv.addEventListener("resize", place);
+    vv.addEventListener("scroll", place);
+    document.addEventListener("focusin", place);
+    document.addEventListener("focusout", place);
+    place();
+    return () => {
+      vv.removeEventListener("resize", place);
+      vv.removeEventListener("scroll", place);
+      document.removeEventListener("focusin", place);
+      document.removeEventListener("focusout", place);
+    };
+  }, [ref]);
 }
 
 /** Everyone else in the document now, one entry per person. */

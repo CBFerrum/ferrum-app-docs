@@ -26,6 +26,8 @@ function placeAt(editor: Editor, rect: { top: number; bottom: number; left: numb
   if (!host) return null;
   const h = host.getBoundingClientRect();
   const rtl = getComputedStyle(host).direction === "rtl";
+  // On a phone the page is the width of the screen: the card and the panel take its width, not the link's place.
+  if (h.width < 600) return { top: Math.round(rect.bottom - h.top + 6), inline: 4 };
   return { top: Math.round(rect.bottom - h.top + 6), inline: Math.max(0, Math.round(rtl ? h.right - rect.right : rect.left - h.left)) };
 }
 

@@ -18,6 +18,8 @@ export interface PageActions {
   comment: () => void;
   save: () => void;
   help: () => void;
+  /** To the bar of what is selected (a table's, a picture's, a chip's), else the formatting toolbar. */
+  bar: () => void;
 }
 
 export interface Shortcut {
@@ -57,6 +59,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "link", label: () => t("Link"), group: "insert", keys: ["Mod-k", "Mod-Shift-k"], scope: "text", run: (_e, p) => (p.link(), true) },
   { id: "pagebreak", label: () => t("Page break"), group: "insert", keys: ["Mod-Enter"], scope: "text", run: (e) => e.commands.insertPageBreak() },
   { id: "footnote", label: () => t("Footnote"), group: "insert", keys: ["Mod-Alt-f"], scope: "text", run: (e) => insertFootnoteAndJump(e) },
+  { id: "bar", label: () => t("Go to the toolbar, or the bar of the selected table or picture"), group: "document", keys: ["Alt-F10"], scope: "text", run: (_e, p) => (p.bar(), true) },
   { id: "linebreak", label: () => t("Line break"), group: "insert", keys: ["Shift-Enter"], scope: "native" },
   { id: "undo", label: () => t("Undo"), group: "document", keys: ["Mod-z"], scope: "text", run: (e) => e.commands.undo() },
   { id: "redo", label: () => t("Redo"), group: "document", keys: ["Mod-Shift-z", "Mod-y"], scope: "text", run: (e) => e.commands.redo() },
@@ -107,7 +110,7 @@ export const DocKeys = Extension.create<{ page: () => PageActions }>({
   priority: 1000,
   addOptions() {
     const none = () => undefined;
-    return { page: () => ({ link: none, find: none, replace: none, comment: none, save: none, help: none }) };
+    return { page: () => ({ link: none, find: none, replace: none, comment: none, save: none, help: none, bar: none }) };
   },
   addKeyboardShortcuts() {
     const out: Record<string, () => boolean> = {};

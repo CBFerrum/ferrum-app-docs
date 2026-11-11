@@ -709,6 +709,12 @@ export function Toolbar({
   });
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     const target = e.target as HTMLElement;
+    // Escape on the row goes back to the text (a menu of the row closes first, and returns there itself).
+    if (e.key === "Escape" && !target.closest("[role=dialog], [role=menu], dialog")) {
+      e.preventDefault();
+      editor.commands.focus();
+      return;
+    }
     if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key) || target.closest("[role=dialog], [role=menu], dialog")) return;
     if (target instanceof HTMLInputElement) {
       // In the size field the arrows move the caret until it is at the edge, and Home and End are the field's.
