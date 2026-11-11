@@ -59,6 +59,8 @@ export const PageBreak = Node.create({
         () =>
         ({ tr, dispatch, state }) => {
           const type = state.schema.nodes.pageBreak!;
+          // Not in a footnote: the notes are the end of the document, nothing goes after them.
+          for (let d = state.selection.$from.depth; d > 0; d--) if (state.selection.$from.node(d).type.name === "footnote") return false;
           // Only between the document's own blocks: a break inside a table or a list goes after it.
           tr.deleteSelection();
           const at = tr.selection.$from;

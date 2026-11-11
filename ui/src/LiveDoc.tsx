@@ -148,7 +148,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     };
   }, [state.loaded, session.doc]);
   const ready = state.loaded && compat.ok;
-  const editable = ready && state.access === "write" && !state.closed;
+  const canWrite = ready && state.access === "write" && !state.closed;
   const title = docTitle(info.name);
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
@@ -163,7 +163,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const [suggesting, setMode] = useState(false);
   // The menus at the caret open while the text takes typing; the open one answers for the keys.
   const typing = useRef(false);
-  typing.current = editable && !suggesting;
+  typing.current = canWrite && !suggesting;
   const menu = useRef<MenuApi>(NO_MENU);
   const listId = useId();
   // Pictures are chosen from one hidden field, by the toolbar and by the `/` menu.
@@ -184,7 +184,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const sheet = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState(0);
 
-  const editor = useEditor(
+  const made = useEditor(
     {
       editable: false,
       extensions: [
@@ -210,6 +210,16 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true" },
         // Ctrl or ⌘ with Shift and V pastes the words alone: the editor does that itself, so what follows
         // (pictures in pasted text going up to Drive) stands aside.
+        // Ctrl or ⌘ Shift K: the link panel. (Ctrl or ⌘ K alone is the platform bar's search, which takes it before any page: if the bar ever lets a focused text have it, it opens the panel too.)
+        handleKeyDown: (view, e) => {
+          if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k" && view.editable && typing.current) {
+            e.preventDefault();
+            e.stopPropagation();
+            setLinking(true);
+            return true;
+          }
+          return false;
+        },
         handleDOMEvents: {
           keydown: (_view, e) => {
             plain.current = (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "v";
@@ -273,6 +283,10 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     },
     [session, ready],
   );
+  // An editor made before the content could be read has no shared binding: nothing is editable until the bound one is made.
+  const bound = !!made && made.extensionManager.extensions.some((x) => x.name === "collaboration");
+  const editor = ready && !bound ? null : made;
+  const editable = canWrite && bound;
   useEffect(() => {
     current.current = editor;
   }, [editor]);
@@ -280,8 +294,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     if (editor && editor.isEditable !== editable) editor.setEditable(editable);
   }, [editor, editable]);
   useEffect(() => {
-    if (editor && state.me) editor.commands.updateUser({ name: state.me.name, color: state.me.color });
-  }, [editor, state.me]);
+    if (editor && ready && state.me) editor.commands.updateUser({ name: state.me.name, color: state.me.color });
+  }, [editor, ready, state.me]);
 
   // The page: as wide as the paper where the screen has room, else as wide as the screen. A new empty document
   // takes its person's usual paper (Letter for en-US, A4 elsewhere) the first time an editor opens it; a document
@@ -323,18 +337,6 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     };
   }, [editor, editable, session.doc]);
   const unit = unitFor(document.documentElement.lang || navigator.language || "en");
-  // Ctrl or ⌘ K: the link panel, where the text is being edited.
-  useEffect(() => {
-    const onLink = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k" && (e.target as HTMLElement | null)?.closest?.(".doc-body") && editable && !suggesting) {
-        e.preventDefault();
-        setLinking(true);
-      }
-    };
-    window.addEventListener("keydown", onLink);
-    return () => window.removeEventListener("keydown", onLink);
-  }, [editable, suggesting]);
-
   // Drive's lists show who has the file open.
   usePresence(file, state.loaded ? (state.access === "write" ? "edit" : "view") : null);
 
@@ -682,7 +684,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         }}
       />
       {paging && (
-        <Suspense fallback={null}>
+        <Suspense fallback={<ReaderSkeleton />}>
           <PageDialog doc={session.doc} setup={setup} unit={unit} onClose={() => setPaging(false)} />
         </Suspense>
       )}

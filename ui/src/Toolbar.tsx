@@ -537,7 +537,7 @@ export function Toolbar({
       keep: true,
       node: (
         <>
-          <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} keys="Mod-k" active={s.link} onClick={onLink} />
+          <Tool label={s.link ? t("Edit link") : t("Link")} icon={Link2} keys="Mod-Shift-k" active={s.link} onClick={onLink} />
           <Tool label={adding ? t("Adding the image…") : t("Image")} icon={ImagePlus} disabled={adding} onClick={pickImages} />
           <TablePicker editor={editor} active={s.table} />
         </>

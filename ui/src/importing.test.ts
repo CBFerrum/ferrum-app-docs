@@ -1,70 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { docxToMarkdown, guardLine, renderBlocks } from "./docx";
+import { guardLine } from "./docx";
 import { importFile, pictureLinks, textToMarkdown, titleOf, withoutFrontMatter } from "./importing";
 import { parseXml, textOf, unescapeXml } from "./xml";
 import { readText, zipEntries } from "./zip";
 
-// ── a Word file for the tests: a zip of parts, some stored, some deflated ──
-
-const bytesOf = (s: string) => new TextEncoder().encode(s);
-
-async function deflate(data: Uint8Array): Promise<Uint8Array> {
-  const stream = new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
-}
-
-/** A zip of `files` (name → text); the names in `stored` are not compressed. */
-async function zip(files: Record<string, string>, stored: string[] = []): Promise<Uint8Array> {
-  const locals: Uint8Array[] = [];
-  const central: Uint8Array[] = [];
-  let offset = 0;
-  for (const [name, text] of Object.entries(files)) {
-    const raw = bytesOf(text);
-    const method = stored.includes(name) ? 0 : 8;
-    const data = method === 0 ? raw : await deflate(raw);
-    const nm = bytesOf(name);
-    const local = new Uint8Array(30 + nm.length + data.length);
-    const lv = new DataView(local.buffer);
-    lv.setUint32(0, 0x04034b50, true);
-    lv.setUint16(4, 20, true);
-    lv.setUint16(8, method, true);
-    lv.setUint32(18, data.length, true);
-    lv.setUint32(22, raw.length, true);
-    lv.setUint16(26, nm.length, true);
-    local.set(nm, 30);
-    local.set(data, 30 + nm.length);
-    const head = new Uint8Array(46 + nm.length);
-    const hv = new DataView(head.buffer);
-    hv.setUint32(0, 0x02014b50, true);
-    hv.setUint16(4, 20, true);
-    hv.setUint16(6, 20, true);
-    hv.setUint16(10, method, true);
-    hv.setUint32(20, data.length, true);
-    hv.setUint32(24, raw.length, true);
-    hv.setUint16(28, nm.length, true);
-    hv.setUint32(42, offset, true);
-    head.set(nm, 46);
-    locals.push(local);
-    central.push(head);
-    offset += local.length;
-  }
-  const size = central.reduce((n, c) => n + c.length, 0);
-  const end = new Uint8Array(22);
-  const ev = new DataView(end.buffer);
-  ev.setUint32(0, 0x06054b50, true);
-  ev.setUint16(8, central.length, true);
-  ev.setUint16(10, central.length, true);
-  ev.setUint32(12, size, true);
-  ev.setUint32(16, offset, true);
-  const all = [...locals, ...central, end];
-  const out = new Uint8Array(all.reduce((n, a) => n + a.length, 0));
-  let at = 0;
-  for (const a of all) {
-    out.set(a, at);
-    at += a.length;
-  }
-  return out;
-}
+import { bytesOf, zip } from "./testzip";
 
 const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
 const run = (text: string, props = "") => `<w:r>${props ? `<w:rPr>${props}</w:rPr>` : ""}<w:t xml:space="preserve">${text}</w:t></w:r>`;
@@ -148,56 +88,9 @@ describe("reading a zip", () => {
   });
 });
 
-describe("a Word document as Markdown", () => {
-  it("keeps headings, looks, links, lists, quotes, code and tables", async () => {
-    const { markdown, pictures } = await docxToMarkdown(await docx());
-    expect(pictures).toBe(1);
-    expect(markdown).toBe(
-      [
-        "# Q4 plan",
-        "## Why we do it",
-        "Ship **live** ***documents*** with 5 \\* 3 and snake\\_case, [~~a link~~](https://example.com/a?b=1&c=2).\\\nAfter a break.",
-        "\\# not a heading",
-        "- First\n  - Nested\n- Second",
-        "1. Step one\n1. Step two",
-        "> Said by someone\n>\n> And by another",
-        "```\nfn main() {}\nlet x = 1;\n```",
-        "| Owner | Due \\| when |\n|---|---|\n| Ana | Friday |\n| All day |  |",
-        "Kept added",
-        "unsafe",
-      ].join("\n\n"),
-    );
-  });
-
-  it("takes tracked changes as they stand, and skips empty paragraphs and page layout", async () => {
-    const doc = `<w:document ${W}><w:body>${para(run("Keep ") + "<w:del><w:r><w:delText>gone</w:delText></w:r></w:del>" + "<w:r><w:br w:type=\"page\"/></w:r>" + run("this"))}${para("")}${para(run("  "))}</w:body></w:document>`;
-    expect((await docxToMarkdown(await docx(doc))).markdown).toBe("Keep this");
-  });
-
-  it("leaves out paragraphs that are only breaks, and keeps a quote's lines from becoming blocks", async () => {
-    const doc = `<w:document ${W}><w:body>${para("<w:r><w:br/></w:r>")}${para(run("# not a heading"), styled("Quote"))}${para(run("kept"))}</w:body></w:document>`;
-    expect((await docxToMarkdown(await docx(doc))).markdown).toBe("> \\# not a heading\n\nkept");
-  });
-
-  it("says why a file cannot be imported", async () => {
-    await expect(docxToMarkdown(bytesOf("not a zip"))).rejects.toThrow(/not a Word document/);
-    await expect(docxToMarkdown(await zip({ "other.xml": "<a/>" }))).rejects.toThrow(/no text part/);
-    await expect(docxToMarkdown(await docx(`<w:document ${W}><w:body>${para("")}</w:body></w:document>`))).rejects.toThrow(/no text to import/);
-    await expect(docxToMarkdown(await docx("<w:document><broken"))).rejects.toThrow(/damaged/);
-  });
-
+describe("Markdown from text", () => {
   it("keeps a line from being read as something else", () => {
     expect([guardLine("# x"), guardLine("> x"), guardLine("- x"), guardLine("1. x"), guardLine("2) x"), guardLine("---"), guardLine("plain"), guardLine("1990s")]).toEqual(["\\# x", "\\> x", "\\- x", "1\\. x", "2\\) x", "\\---", "plain", "1990s"]);
-  });
-
-  it("writes lists the server reads: nested by the width of the marker above", () => {
-    const md = renderBlocks([
-      { t: "item", kind: "ordered", level: 0, text: "one" },
-      { t: "item", kind: "bullet", level: 1, text: "inside" },
-      { t: "item", kind: "ordered", level: 0, text: "two\nsecond line" },
-      { t: "item", kind: "bullet", level: 0, text: "bullets now" },
-    ]);
-    expect(md).toBe("1. one\n   - inside\n1. two\n   second line\n\n- bullets now");
   });
 });
 
@@ -226,8 +119,9 @@ describe("making a document from a file", () => {
   it("reads a Word file and tells what was left out", async () => {
     const made = await importFile(file("Report.docx", (await docx()) as BlobPart));
     expect(made.title).toBe("Report");
-    expect(made.markdown.startsWith("# Q4 plan")).toBe(true);
-    expect(made.notes).toEqual(["1 picture was left out: add it again in the document."]);
+    // A Word file is made into the document itself (fillDocument), not into Markdown.
+    expect(made.docx?.converted.content[0]).toMatchObject({ type: "paragraph", attrs: { role: "title" } });
+    expect(made.notes).toEqual(["1 tracked deletion: the deleted words were left out and the inserted words kept."]);
   });
 
   it("explains files it cannot make a document from", async () => {

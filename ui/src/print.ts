@@ -101,6 +101,7 @@ export function boxes(side: "top" | "bottom", lines: Line[], ctx: Context): stri
     const css = [`content: ${mine.length ? boxContent(mine, ctx) : "none"}`];
     if (mine.length) {
       const first = mine.flatMap((l) => l.runs).find((r) => r.text || r.field);
+      // ui-lint-allow raw-color: the printed margin text is grey on white paper, whatever the theme
       css.push("white-space: pre-wrap", "vertical-align: middle", `font-size: ${first?.size ?? 9}pt`, `color: ${first?.color ?? "#555555"}`, `font-weight: ${first?.bold ? 700 : 400}`, `font-style: ${first?.italic ? "italic" : "normal"}`);
       if (first?.underline) css.push("text-decoration: underline");
       const stack = fontStack(first?.family);
