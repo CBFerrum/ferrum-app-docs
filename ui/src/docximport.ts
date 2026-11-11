@@ -499,6 +499,7 @@ class Reader {
         const fill = props && child(props, "w:shd")?.attrs["w:fill"];
         const bg = fill && fill !== "auto" ? cleanColor(`#${fill}`) : null;
         const body = this.blocks(tc);
+        // ui-lint-allow raw-color: a Word cell filled white has no fill
         const cell: JSONNode = { type: header ? "tableHeader" : "tableCell", attrs: { colspan: span, rowspan: 1, colwidth: widths.length === span ? widths : null, background: bg === "#ffffff" ? null : bg }, content: body.length ? body : [{ type: "paragraph" }] };
         cells.push(cell);
         if (vm) above.set(col, cell);
