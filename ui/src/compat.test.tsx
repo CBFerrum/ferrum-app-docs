@@ -79,3 +79,28 @@ describe("a document this client wrote", () => {
     expect(readFormat(doc)).toBe(FORMAT);
   });
 });
+
+describe("wave 3's suggestions and a wave 2 client", () => {
+  it("raise the format to 3 only for wave 3's features, and a wave 2 client keeps such a document read-only", async () => {
+    const { Collaboration } = await import("@tiptap/extension-collaboration");
+    const { Suggestions, setSuggesting } = await import("./suggest");
+    const { formatOf, unknownIn } = await import("./compat");
+    const doc = new Y.Doc();
+    const e = new Editor({ extensions: [...documentExtensions("f"), Suggestions, Collaboration.configure({ document: doc, field: "default" })] });
+    e.commands.setContent("<p>Ship on Friday</p>");
+    e.commands.setTextSelection({ from: 1, to: 5 });
+    e.commands.setLineHeight(2);
+    expect(formatOf(e.state.doc)).toBe(2);
+    e.view.dispatch(setSuggesting(e.state, true, { id: "u1", name: "Ana" }));
+    e.commands.toggleBold();
+    expect(formatOf(e.state.doc)).toBe(3);
+    stamp(doc, formatOf(e.state.doc));
+    await new Promise((r) => setTimeout(r, 10));
+    // A wave 2 client knew format 2 and had neither the formatChange mark nor the boundary attributes.
+    expect(readFormat(doc)).toBeGreaterThan(2);
+    const wave2 = getSchema(documentExtensions("f").filter((x) => x.name !== "formatChange" && x.name !== "docSuggestionAttrs"));
+    expect(unknownIn(doc, wave2)).toContain("mark formatChange");
+    expect(checkFormat(doc, schema).ok).toBe(true);
+    e.destroy();
+  });
+});

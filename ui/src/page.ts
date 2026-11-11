@@ -9,7 +9,8 @@
 // en-US, A4 elsewhere) written into it the first time an editor opens it (Docs.tsx, LiveDoc.tsx).
 
 import * as Y from "yjs";
-import { FORMAT } from "./compat";
+/** Page settings are a format 2 feature (compat.ts). */
+const PAGE_FORMAT = 2;
 
 export type Paper = "A4" | "Letter" | "Legal" | "A3" | "A5";
 export const PAPERS: Paper[] = ["A4", "Letter", "Legal", "A3", "A5"];
@@ -88,7 +89,7 @@ export function writeSetup(doc: Y.Doc, setup: PageSetup): void {
   doc.transact(() => {
     const m = pageMap(doc);
     for (const [k, v] of Object.entries(clean)) if (m.get(k) !== v) m.set(k, v);
-    if (typeof m.get("format") !== "number" || (m.get("format") as number) < FORMAT) m.set("format", FORMAT);
+    if (typeof m.get("format") !== "number" || (m.get("format") as number) < PAGE_FORMAT) m.set("format", PAGE_FORMAT);
   });
 }
 

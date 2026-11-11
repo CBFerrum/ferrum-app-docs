@@ -840,6 +840,40 @@ input.doc-title:focus {
   background: color-mix(in srgb, var(--danger) 8%, transparent);
   text-decoration: line-through;
 }
+/* Proposed formatting: a dotted line under the text, in the colour of suggestions. */
+.doc-fmt {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--success);
+  text-decoration-thickness: 2px;
+}
+/* A proposed paragraph boundary (new: ¶ in the margin; removed: ¶ struck), and a paragraph whose style is
+   proposed (a bar in the margin). Shown beside the text, not over it; the list of suggestions names them. */
+.doc-body :is(p, h1, h2, h3, h4, h5, h6)[data-split],
+.doc-body :is(p, h1, h2, h3, h4, h5, h6)[data-join] {
+  position: relative;
+}
+.doc-body :is(p, h1, h2, h3, h4, h5, h6)[data-split]::before,
+.doc-body :is(p, h1, h2, h3, h4, h5, h6)[data-join]::before {
+  content: "¶";
+  position: absolute;
+  inset-inline-start: -1.25em;
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--success);
+}
+.doc-body :is(p, h1, h2, h3, h4, h5, h6)[data-join]::before {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+.doc-body [data-formatted] {
+  box-shadow: -8px 0 0 -6px var(--success);
+}
+.doc-body [data-formatted]:dir(rtl) {
+  box-shadow: 8px 0 0 -6px var(--success);
+}
+.doc-proposals-who {
+  max-inline-size: 10rem;
+}
 .doc-toolbar.is-suggesting {
   box-shadow: inset 0 -2px 0 var(--success);
 }

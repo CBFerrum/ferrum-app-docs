@@ -12,7 +12,7 @@ import { formattingExtensions } from "./format";
 import { DocImage } from "./image";
 import { Mention } from "./mention";
 import { DocWithNotes, pagesExtensions } from "./pages";
-import { Deletion, Insertion } from "./suggest";
+import { Deletion, FormatChange, Insertion, SuggestionAttrs } from "./suggest";
 
 /** The extensions that define the document's schema; `file` is the document images are kept with. */
 export function documentExtensions(file: string): AnyExtension[] {
@@ -30,6 +30,8 @@ export function documentExtensions(file: string): AnyExtension[] {
     DocImage.configure({ file }),
     Insertion,
     Deletion,
+    FormatChange,
+    SuggestionAttrs,
     Callouts,
     Mention,
   ];
