@@ -134,3 +134,12 @@ describe("an older client", () => {
     now.destroy();
   });
 });
+
+describe("numbered lists", () => {
+  it("continue from the list before at their depth, others keep their own start", async () => {
+    const { listNumbers } = await import("./format");
+    const e = new Editor({ extensions: documentExtensions("f"), content: '<ol><li><p>a</p></li><li><p>b</p></li></ol><p>x</p><ol data-continues><li><p>c</p></li></ol><ol start="7"><li><p>d</p></li></ol><ol data-continues><li><p>e</p></li></ol>' });
+    expect([...listNumbers(e.state.doc).values()]).toEqual([1, 3, 7, 8]);
+    e.destroy();
+  });
+});

@@ -62,7 +62,7 @@ export function checkFormat(doc: Y.Doc, schema: Schema): Compat {
 const NODES = new Set(["pageBreak", "tableOfContents", "footnote", "footnoteRef"]);
 const MARKS = new Set(["textStyle", "subscript", "superscript"]);
 const NODES3 = new Set(["dateChip"]);
-const ATTRS3 = ["split", "join", "formatted", "continues", "verticalAlign", "cellAlign", "borders"];
+const ATTRS3 = ["split", "join", "formatted", "continues", "verticalAlign", "borders"];
 
 /** The format the text needs: 3 for wave 3's features, 2 for wave 2's, else 1. */
 export function formatOf(doc: PMNode): number {

@@ -1388,9 +1388,6 @@ input.doc-title:focus {
 .doc-region-footer {
   min-block-size: var(--mb, 96px);
 }
-.doc-region-first {
-  min-block-size: 0;
-}
 .doc-region .ProseMirror {
   min-block-size: 1.4em;
   outline: none;
@@ -1828,4 +1825,76 @@ input.doc-title:focus {
 .doc-keys-list dd {
   margin: 0;
   text-align: end;
+}
+
+/* A date chip: the date in the reader's words, a rounded tint like a mention. */
+.doc-body .doc-date {
+  padding: 0 0.35em;
+  border-radius: 4px;
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+.doc-body .doc-date.ProseMirror-selectednode {
+  box-shadow: var(--focus-ring);
+}
+/* Table cells set to sit their content in the middle or at the bottom, and a table drawn without borders. */
+.doc-body td[data-valign="middle"],
+.doc-body th[data-valign="middle"] {
+  vertical-align: middle;
+}
+.doc-body td[data-valign="bottom"],
+.doc-body th[data-valign="bottom"] {
+  vertical-align: bottom;
+}
+.doc-body table[data-borders="none"] :is(td, th) {
+  border-color: transparent;
+  outline: 1px dashed color-mix(in srgb, var(--border) 60%, transparent);
+  outline-offset: -1px;
+}
+@media print {
+  .doc-body table[data-borders="none"] :is(td, th) {
+    outline: none;
+  }
+}
+/* With a different first page: the switch between the pair, always in view while editing. */
+.doc-region-pair {
+  position: absolute;
+  inset-inline-start: 8px;
+  inset-block-start: 4px;
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  z-index: 2;
+}
+.doc-region-footer .doc-region-pair {
+  inset-block-start: auto;
+  inset-block-end: 4px;
+}
+.doc-region-pick {
+  min-block-size: 24px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.doc-region-pick[aria-pressed="true"] {
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 600;
+}
+.doc-region-pick:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+@media print {
+  .doc-region-pair {
+    display: none;
+  }
 }

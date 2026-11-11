@@ -24,7 +24,7 @@ import { Contents } from "./Contents";
 import { Find } from "./find";
 import { FindBar } from "./FindBar";
 import { IMAGE_TYPES, imageFiles } from "./image";
-import { ImageBar, TableBar } from "./ContextBars";
+import { ContentsBar, DateBar, ImageBar, TableBar } from "./ContextBars";
 import { remember, remembered } from "./local";
 import { ColumnResize } from "./format";
 import { PasteTidy, hasForeignImages, hasWords, localizeImages } from "./paste";
@@ -323,6 +323,10 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const real = room >= pageW;
   const printNow = usePrintStyle(session.doc, setup, title);
   const layout = usePageLayout(editor, sheet, setup, real, ready);
+  // Which of a different first page's pair is shown: the top is page 1; the end is page 1 only in a one-page document.
+  const [topFirst, setTopFirst] = useState(true);
+  const [bottomPick, setBottomFirst] = useState<boolean | null>(null);
+  const bottomFirst = bottomPick ?? (layout?.pages ?? 1) <= 1;
   // The first use of a format 2 feature raises the document's recorded format (compat.ts).
   useEffect(() => {
     if (!editor || !editable) return;
@@ -429,6 +433,19 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     }
   };
   const canEdit = allows(info.permission, "Edit");
+  /** To Drive's trash, with Undo; the person goes back to Docs. */
+  const trash = async () => {
+    try {
+      await act("trash", { item: file });
+      void qc.invalidateQueries({ queryKey: ["docs"] });
+      toast(t("“{name}” moved to the trash", { name: title }), "success", {
+        action: { label: t("Undo"), onSelect: () => void act("restore", { item: file }).then(() => qc.invalidateQueries({ queryKey: ["docs"] }), (e: unknown) => toast(errorMessage(e), "error")) },
+      });
+      navigate("/");
+    } catch (e) {
+      toast(errorMessage(e), "error");
+    }
+  };
   const canComment = allows(info.permission, "Comment") && !!space.data;
   const account = useMe().data;
   // People picked from `@` are told, by a comment, when they are still mentioned a few seconds on.
@@ -585,6 +602,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                     <MenuItem onSelect={item(() => run().insertPageBreak().run())}>{t("Page break")}</MenuItem>
                     <MenuItem onSelect={item(() => run().insertContents().run())}>{t("Table of contents")}</MenuItem>
                     <MenuItem onSelect={item(() => insertFootnoteAndJump(editor))}>{t("Footnote")}</MenuItem>
+                    <MenuItem onSelect={item(() => run().insertDate().run())}>{t("Date")}</MenuItem>
+                    {/* The @ it types opens the menu of people (a person chip is a mention). */}
+                    <MenuItem onSelect={item(() => run().insertContent("@").run())}>{t("Person")}</MenuItem>
                     <MenuItem onSelect={item(() => run().setHorizontalRule().run())}>{t("Divider")}</MenuItem>
                   </>
                 );
@@ -608,6 +628,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                   <MenuItem onSelect={item(() => (printNow(), window.print()))}>{t("Print")}</MenuItem>
                   <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>{t("Version history")}</MenuItem>
                   {space.data && info.parent && <MenuItem onSelect={item(copy)}>{t("Make a copy")}</MenuItem>}
+                  {canEdit && space.data && <MenuItem onSelect={item(() => document.getElementById("doc-title-input")?.focus())}>{t("Rename")}</MenuItem>}
+                  {canEdit && space.data && <MenuItem onSelect={item(trash)}>{t("Move to trash")}</MenuItem>}
                   {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>{t("Save as a template")}</MenuItem>}
                   <MenuItem onSelect={item(() => setHelping(true))}>{t("Keyboard shortcuts")}</MenuItem>
                 </>
@@ -643,11 +665,29 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
               } as React.CSSProperties
             }
           >
-            {ready && setup.differentFirst && <PageRegion doc={session.doc} name="firstHeader" editable={editable && !suggesting} setup={setup} />}
-            {ready && <PageRegion doc={session.doc} name="header" editable={editable && !suggesting} setup={setup} />}
+            {/* The header at the top is page 1's; the footer at the end, the last page's. With a different first page the
+                other of each pair is a switch away. */}
+            {ready && (
+              <PageRegion
+                key={setup.differentFirst && topFirst ? "firstHeader" : "header"}
+                doc={session.doc}
+                name={setup.differentFirst && topFirst ? "firstHeader" : "header"}
+                editable={editable && !suggesting}
+                setup={setup}
+                pair={setup.differentFirst ? { first: topFirst, set: setTopFirst } : undefined}
+              />
+            )}
             <EditorContent className="doc-sheet-text" editor={editor} hidden={!state.loaded} />
-            {ready && <PageRegion doc={session.doc} name="footer" editable={editable && !suggesting} setup={setup} />}
-            {ready && setup.differentFirst && <PageRegion doc={session.doc} name="firstFooter" editable={editable && !suggesting} setup={setup} />}
+            {ready && (
+              <PageRegion
+                key={setup.differentFirst && bottomFirst ? "firstFooter" : "footer"}
+                doc={session.doc}
+                name={setup.differentFirst && bottomFirst ? "firstFooter" : "footer"}
+                editable={editable && !suggesting}
+                setup={setup}
+                pair={setup.differentFirst ? { first: bottomFirst, set: setBottomFirst } : undefined}
+              />
+            )}
             {real && layout?.marks.map((m) => <div key={m.page} className="doc-pagemark" style={{ insetBlockStart: m.top }} data-label={t("Page {page}", { page: m.page })} aria-hidden />)}
           </div>
           {editor && editable && <EditorMenus editor={editor} menu={menu} listId={listId} pickImages={pickImages} onMentioned={notified} />}
@@ -655,6 +695,8 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
             <>
               <TableBar editor={editor} />
               <ImageBar editor={editor} file={file} />
+              <DateBar editor={editor} />
+              <ContentsBar editor={editor} />
             </>
           )}
           {editor && state.loaded && !linking && <LinkCard editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} editable={editable} edit={() => setLinking(true)} />}
@@ -755,11 +797,13 @@ function Title({ name, canRename, rename }: { name: string; canRename: boolean; 
   if (!canRename) return <h1 className="doc-title doc-title-static">{isolate(docTitle(name))}</h1>;
   return (
     <input
+      id="doc-title-input"
       className="doc-title"
       aria-label={t("Document name")}
       value={value}
       maxLength={240}
       onChange={(e) => setValue(e.target.value)}
+      onFocus={(e) => e.currentTarget.select()}
       onBlur={() => void commit()}
       onKeyDown={(e: ReactKeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") e.currentTarget.blur();
