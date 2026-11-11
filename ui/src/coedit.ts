@@ -514,6 +514,7 @@ export function othersIn(awareness: awarenessProtocol.Awareness): (Person & { cl
     if (client === awareness.clientID || !user?.name) return;
     // One entry per person, however many tabs they have open.
     if (user.id && out.some((p) => p.id === user.id)) return;
+    // ui-lint-allow raw-color: fallback for a collaborator's own (server-chosen) cursor colour
     out.push({ client, id: user.id ?? String(client), name: user.name, color: user.color ?? "#64748b" });
   });
   return out;

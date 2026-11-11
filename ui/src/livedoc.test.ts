@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { initials } from "@ferrum/client";
 import { textThreads, type DriveComment } from "./comments";
 import { allows, docTitle, snippetParts } from "./livedocs";
-import { cleanHref, statusText } from "./LiveDoc";
+import { cleanHref, saveState, statusText } from "./LiveDoc";
 
 describe("live documents", () => {
   it("are named without their extension", () => {
@@ -33,6 +33,15 @@ describe("live documents", () => {
     expect(statusText({ ...s, online: false, unsaved: true }, true)).toMatch(/^Offline: your changes are kept in this browser/);
     expect(statusText({ ...s, loaded: false })).toBe("Opening…");
     expect(statusText({ ...s, closed: true })).toBe("Not connected");
+  });
+
+  it("never call changes saved until the server has them", () => {
+    const s = { online: true, loaded: true, unsaved: false, closed: false };
+    expect(saveState(s)).toBe("saved");
+    expect(saveState({ ...s, unsaved: true })).toBe("saving");
+    expect(saveState({ ...s, online: false, unsaved: true }, true)).toBe("local");
+    expect(saveState({ ...s, online: false, unsaved: true })).toBe("draft");
+    expect([saveState({ ...s, online: false }), saveState({ ...s, closed: true }), saveState({ ...s, loaded: false })]).toEqual([null, null, null]);
   });
 
   it("gather comments on the text into threads", () => {

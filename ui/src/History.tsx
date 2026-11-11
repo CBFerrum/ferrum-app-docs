@@ -18,12 +18,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import * as Y from "yjs";
 import { api, download, errorMessage, fetchBlob, formatDateTime, relativeTime, t, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, EmptyState, ErrorState, Menu, MenuItem, Spinner, toast, useShellTitle } from "@ferrum/kit";
+import { Alert, Badge, Button, ListSkeleton, Menu, MenuItem, ReaderSkeleton, Spinner, StatePanel, toast, useShellTitle } from "@ferrum/kit";
 import { usePeople } from "@ferrum/records";
 import { type Range, compare } from "./compare";
 import { type ItemInfo, allows, docTitle } from "./livedocs";
 import { documentExtensions } from "./schema";
 import { type Version, type Which, chosen, fileSize, parseAgainst, sideName, sides, summary } from "./versions";
+import { LoadFailed } from "./states";
 import "./livedoc.css";
 
 /** The text of a version (or of the document now) as ProseMirror JSON, read from the Yjs state Drive
@@ -180,14 +181,19 @@ export function HistoryPage() {
   );
   let body;
   if (list.error || info.error) {
-    body = <ErrorState error={list.error ?? info.error} title={t("The versions could not be loaded")} onRetry={() => void Promise.all([list.refetch(), info.refetch()])} />;
+    body = <LoadFailed error={list.error ?? info.error} title={t("The versions could not be loaded")} onRetry={() => void Promise.all([list.refetch(), info.refetch()])} />;
   } else if (!list.data || !info.data) {
-    body = <Spinner label={t("Loading the versions")} />;
+    body = (
+      <div className="doc-history-body">
+        <ListSkeleton rows={6} />
+        <ReaderSkeleton />
+      </div>
+    );
   } else if (!version || !pair) {
     body = (
-      <EmptyState title={t("No versions yet")} icon="file">
-        <p className="muted">{t("A version is saved when the last person leaves the document, and every ten minutes while people type.")}</p>
-      </EmptyState>
+      <StatePanel kind="empty" title={t("No versions yet")}>
+        {t("A version is saved when the last person leaves the document, and every ten minutes while people type.")}
+      </StatePanel>
     );
   } else {
     const failed = older.error ?? newer.error;
