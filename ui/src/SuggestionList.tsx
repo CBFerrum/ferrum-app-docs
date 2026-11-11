@@ -36,6 +36,7 @@ export function formatLabel(key: string): string {
     numberStyle: () => t("List style"),
     start: () => t("Start number"),
     continues: () => t("Continue numbering"),
+    dir: () => t("Text direction"),
     "type:paragraph": () => t("Text"),
     "type:orderedList": () => t("Numbered list"),
     "type:bulletList": () => t("Bulleted list"),

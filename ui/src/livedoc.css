@@ -538,7 +538,7 @@ input.doc-title:focus {
 }
 .doc-body th {
   font-weight: 600;
-  text-align: left;
+  text-align: start;
   background: var(--surface-2);
 }
 .doc-body .selectedCell::after {

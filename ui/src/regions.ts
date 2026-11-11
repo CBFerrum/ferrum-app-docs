@@ -4,7 +4,7 @@
 // first page has its own), edited in place at the top and the bottom of the page.
 
 import { Node } from "@tiptap/core";
-import type { AnyExtension } from "@tiptap/core";
+import { type AnyExtension, Extension } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { TextAlign } from "@tiptap/extension-text-align";
 import { t } from "@ferrum/client";
@@ -65,6 +65,8 @@ export function regionExtensions(): AnyExtension[] {
     }),
     DocTextStyle,
     TextAlign.configure({ types: ["paragraph"] }),
+    // Each line of a header or footer reads in the direction of its own words.
+    Extension.create({ name: "regionDir", addGlobalAttributes: () => [{ types: ["paragraph"], attributes: { autoDir: { default: null, parseHTML: () => null, renderHTML: () => ({ dir: "auto" }) } } }] }),
     PageField,
   ];
 }
