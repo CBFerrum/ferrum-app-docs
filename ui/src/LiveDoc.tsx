@@ -14,7 +14,7 @@ import { ArrowLeft, TableOfContents } from "lucide-react";
 import { Search } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, Suspense, lazy, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
-import { ApiError, api, download, errorMessage, initials, saveBlob, shell, t, isolate } from "@ferrum/client";
+import { ApiError, api, errorMessage, initials, saveBlob, shell, t, isolate } from "@ferrum/client";
 import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, announce, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
@@ -48,6 +48,7 @@ import { documentExtensions } from "./schema";
 import { Tips } from "./Tool";
 import { Suggestions, refusalText, setSuggesting, suggestionsIn } from "./suggest";
 import { DocKeys, type PageActions, pageKey } from "./keys";
+import { downloadExport, notCarriedField, tellNotCarried } from "./exporting";
 import "./livedoc.css";
 
 // The page setup dialog is loaded when somebody opens it.
@@ -386,8 +387,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   const content = `/api/app/drive/files/${file}/content`;
   const exportAs = async (format: "html" | "pdf" | "docx" | "txt") => {
     try {
-      await download(content, `${title}.${format}`, { format });
+      const lost = await downloadExport(content, `${title}.${format}`, { format });
       if (format === "txt") suggestionsNote();
+      tellNotCarried(format, lost);
     } catch (e) {
       toast(errorMessage(e), "error");
     }
@@ -398,9 +400,10 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   };
   const exportMarkdown = async () => {
     try {
-      const r = await api.get<{ content: string }>("/api/app/drive/read_document", { file, format: "markdown" });
+      const r = await api.get<{ content: string; not_carried?: unknown }>("/api/app/drive/read_document", { file, format: "markdown" });
       saveBlob(new Blob([r.content], { type: "text/markdown;charset=utf-8" }), `${title}.md`);
       suggestionsNote();
+      tellNotCarried("md", notCarriedField(r.not_carried));
     } catch (e) {
       toast(errorMessage(e), "error");
     }
