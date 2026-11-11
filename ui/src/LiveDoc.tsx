@@ -15,7 +15,7 @@ import { Search } from "lucide-react";
 import { type FormEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, Suspense, lazy, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Link, useBlocker, useLocation, useNavigate, useParams } from "react-router";
 import { ApiError, api, download, errorMessage, initials, saveBlob, shell, t, isolate } from "@ferrum/client";
-import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
+import { Alert, Badge, Button, Dialog, Field, Menu, MenuItem, ReaderSkeleton, SaveStatus, type SaveState, StatePanel, announce, confirmDialog, toast, useCanIntent } from "@ferrum/kit";
 import { can, useMe, useMetaIndex } from "@ferrum/records";
 import { CoeditSession, type CoeditState, othersIn, socketUrl } from "./coedit";
 import { CommentRail, type Draft, commentsQuery } from "./CommentRail";
@@ -47,10 +47,13 @@ import { usePresence } from "./presence";
 import { documentExtensions } from "./schema";
 import { Tips } from "./Tool";
 import { Suggestions, refusalText, setSuggesting, suggestionsIn } from "./suggest";
+import { DocKeys, type PageActions, pageKey } from "./keys";
 import "./livedoc.css";
 
 // The page setup dialog is loaded when somebody opens it.
 const PageDialog = lazy(() => import("./PageDialog"));
+// So is the list of keyboard shortcuts.
+const ShortcutHelp = lazy(() => import("./ShortcutHelp"));
 
 export { cleanHref } from "./links";
 
@@ -153,6 +156,9 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
   // The editor, for pasted and dropped images (its handlers are set when it is made).
   const current = useRef<Editor | null>(null);
   // A suggested paragraph or formatting change needs format 3 at once: a format 2 client would read it as a real change.
+  // What the page does for the keys of keys.ts (filled below, once the page's functions exist).
+  const pageKeys = useRef<PageActions>({ link: () => undefined, find: () => undefined, replace: () => undefined, comment: () => undefined, save: () => undefined, help: () => undefined });
+  const [helping, setHelping] = useState(false);
   const tracked = useRef(() => undefined as void);
   tracked.current = () => stamp(session.doc, 3);
   // Whether the paste that is coming is the words alone (Ctrl or ⌘ Shift V).
@@ -199,6 +205,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
         Suggestions.configure({ onRefused: (why) => toast(refusalText(why)), onTracked: () => tracked.current() }),
         Find,
         CharacterCount,
+        DocKeys.configure({ page: pageKeys }),
         Menus.configure({ hooks: { enabled: () => typing.current, count: () => menu.current.count(), choose: (i) => menu.current.choose(i), listId } }),
         // Bound to the shared text only once it is known to be readable (compat.ts): binding is what projects it.
         ...(ready
@@ -210,19 +217,10 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
           : []),
       ],
       editorProps: {
-        attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true" },
+        // `data-ferrum-keys`: the platform's bar leaves Ctrl or ⌘ K to the text (the link panel).
+        attributes: { class: "doc-body", "aria-label": t("{title}, document", { title }), spellcheck: "true", "data-ferrum-keys": "mod+k" },
         // Ctrl or ⌘ with Shift and V pastes the words alone: the editor does that itself, so what follows
-        // (pictures in pasted text going up to Drive) stands aside.
-        // Ctrl or ⌘ Shift K: the link panel. (Ctrl or ⌘ K alone is the platform bar's search, which takes it before any page: if the bar ever lets a focused text have it, it opens the panel too.)
-        handleKeyDown: (view, e) => {
-          if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "k" && view.editable && typing.current) {
-            e.preventDefault();
-            e.stopPropagation();
-            setLinking(true);
-            return true;
-          }
-          return false;
-        },
+        // (pictures in pasted text going up to Drive) stands aside. Every other key is in keys.ts.
         handleDOMEvents: {
           keydown: (_view, e) => {
             plain.current = (e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "v";
@@ -364,32 +362,25 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [state.unsaved, session.keeps]);
+  // The page's keys (keys.ts): find and replace stay the browser's while the person types in another field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.altKey && e.code === "KeyM") {
-        e.preventDefault();
-        startRef.current();
-        return;
-      }
-      // Ctrl+F finds, and Ctrl+H (⌘⇧H on a Mac, where ⌘H hides the app) replaces, unless the person is
-      // typing in some other field of the page: then the browser's own find stays theirs.
-      const key = e.key.toLowerCase();
-      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-      const wantsFind = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && key === "f";
-      const wantsReplace = mac ? e.metaKey && e.shiftKey && !e.altKey && key === "h" : e.ctrlKey && !e.altKey && !e.shiftKey && key === "h";
-      if ((wantsFind || wantsReplace) && !inOtherField(e.target)) {
-        e.preventDefault();
-        findRef.current(wantsReplace);
-        return;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
-        e.preventDefault();
-        toast(state.unsaved ? t("Saving: changes are saved as you type") : t("Saved: changes are saved as you type"));
-      }
+      const k = pageKey(e);
+      if (!k || ((k.id === "find" || k.id === "replace") && inOtherField(e.target))) return;
+      e.preventDefault();
+      k.run?.(current.current as Editor, pageKeys.current);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [state.unsaved]);
+  }, []);
+  /** Ctrl or ⌘ S: said once, quietly, then only to screen readers. */
+  const savedOnce = useRef(false);
+  const saveKey = () => {
+    const text = state.unsaved ? t("Saving: Docs saves as you type") : t("Saved: Docs saves as you type");
+    if (savedOnce.current) return announce(text);
+    savedOnce.current = true;
+    toast(text, "info");
+  };
 
   const act = (action: string, body: Record<string, unknown>) => api.post<{ id: string; mentioned?: string[] }>(`/api/v1/DriveSpace/${space.data?.id}/actions/${action}`, body);
   const content = `/api/app/drive/files/${file}/content`;
@@ -461,16 +452,20 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
     setActive(null);
     setDraft(a);
   };
-  const startRef = useRef(startComment);
-  startRef.current = startComment;
   /** Opens find (and, when asked and allowed, replace), and puts the caret in its field. */
   const openFind = (withReplace: boolean) => {
     setFinding(true);
     setReplacing(withReplace && editable);
     setFindFocus((n) => n + 1);
   };
-  const findRef = useRef(openFind);
-  findRef.current = openFind;
+  pageKeys.current = {
+    link: () => editable && setLinking(true),
+    find: () => openFind(false),
+    replace: () => openFind(true),
+    comment: startComment,
+    save: saveKey,
+    help: () => setHelping(true),
+  } as PageActions;
   const showContents = (on: boolean) => {
     setContents(on);
     remember("docs.contents", on ? "1" : "0");
@@ -611,6 +606,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
                   <MenuItem onSelect={item(() => navigate(`/d/${file}/history`))}>{t("Version history")}</MenuItem>
                   {space.data && info.parent && <MenuItem onSelect={item(copy)}>{t("Make a copy")}</MenuItem>}
                   {keepsTemplates && <MenuItem onSelect={item(() => setTemplating(true))}>{t("Save as a template")}</MenuItem>}
+                  <MenuItem onSelect={item(() => setHelping(true))}>{t("Keyboard shortcuts")}</MenuItem>
                 </>
               );
             }}
@@ -658,7 +654,7 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
               <ImageBar editor={editor} file={file} />
             </>
           )}
-          {editor && state.loaded && !linking && <LinkCard editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} editable={editable && !suggesting} edit={() => setLinking(true)} />}
+          {editor && state.loaded && !linking && <LinkCard editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} editable={editable} edit={() => setLinking(true)} />}
           {editor && linking && <LinkPanel editor={editor} env={{ file, openDoc: (id) => openDoc.current(id) }} onClose={() => setLinking(false)} />}
         </div>
         )}
@@ -693,6 +689,11 @@ function LiveDoc({ file, session, info }: { file: string; session: CoeditSession
       {paging && (
         <Suspense fallback={<ReaderSkeleton />}>
           <PageDialog doc={session.doc} setup={setup} unit={unit} onClose={() => setPaging(false)} />
+        </Suspense>
+      )}
+      {helping && (
+        <Suspense fallback={null}>
+          <ShortcutHelp onClose={() => setHelping(false)} />
         </Suspense>
       )}
       {templating && <TemplateDialog file={file} title={title} unsaved={state.unsaved} onClose={() => setTemplating(false)} />}

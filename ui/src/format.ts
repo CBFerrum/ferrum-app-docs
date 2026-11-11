@@ -464,21 +464,7 @@ export const Formatting = Extension.create({
         },
     };
   },
-
-  addKeyboardShortcuts() {
-    const e = this.editor;
-    return {
-      "Mod-\\": () => e.commands.clearFormatting(),
-      "Mod-Shift-.": () => e.commands.changeFontSize(1),
-      "Mod-Shift->": () => e.commands.changeFontSize(1),
-      "Mod-Shift-,": () => e.commands.changeFontSize(-1),
-      "Mod-Shift-<": () => e.commands.changeFontSize(-1),
-      "Mod-Shift-x": () => e.commands.toggleStrike(),
-      "Alt-Shift-5": () => e.commands.toggleStrike(),
-      "Mod-]": () => e.commands.indentMore(),
-      "Mod-[": () => e.commands.indentLess(),
-    };
-  },
+  // Its keys are in keys.ts, with every other shortcut.
 });
 
 /** A cell's pasted colour: Word writes `background:#D9E2F3` or `bgcolor`; white is no colour. */
