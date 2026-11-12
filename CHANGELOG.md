@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+Rebuilt with Ferrum-Frontend 45dad7f, the design system as tuned after the landed build was reviewed. The left menu's icons are chosen so that none repeats on more than three rows and each fits its row; their drawings load beside the first page instead of inside it, so the page starts lighter; a row that scrolls sideways fades at the edge where there is more, in every browser and with reduced motion; a printed record leaves out empty fields and keeps its totals with the table; menus and popovers sit inside the page's landmarks for assistive technology; a selection bar folds what does not fit into More on a narrow screen. Nothing else changes.
+
 ## 0.8.0
 
 Docs becomes a word processor. Built with Ferrum-Frontend 60402fa; exports need a platform at 7ccc85c or later to carry the formatting.

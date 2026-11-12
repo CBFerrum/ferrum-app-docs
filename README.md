@@ -272,6 +272,7 @@ CHANGELOG.md  what changed in each version
 
 | Version | Highlights |
 |---|---|
+| **0.8.1** | Rebuilt on the tuned design system: better menu icons, a lighter first page, a visible scroll cue, cleaner print. |
 | **0.8.0** | A word processor: fonts, sizes, colours, spacing; table and picture tools; page setup, headers, footers, page breaks, contents, footnotes; suggesting that covers paragraphs and formatting; paste and import from Word; a newer-format guard. |
 | **0.7.13** | The redesigned interface: the upgraded design system, shaped loading, told-apart states. |
 | **0.7.12** | Its names in Arabic and Hindi; the last English sentences translated. |

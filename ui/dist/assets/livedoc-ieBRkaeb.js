@@ -1,0 +1,1 @@
+import{c as n}from"./index-jvVKfCEn.js";const o={name:"chevron-down",size:24,node:[["path",{d:"m6 9 6 6 6-6",key:"qrunsl"}]]};o.node;const c=n(o);const e={name:"chevron-up",size:24,node:[["path",{d:"m18 15-6-6-6 6",key:"153udz"}]]};e.node;const t=n(e);export{t as C,c as a};
