@@ -92,15 +92,16 @@ fn docs_end_to_end() {
 
 async fn scenario() {
     let url = std::env::var("FERRUM_DOCS_TEST_DATABASE_URL").unwrap_or_else(|_| "postgres://ferrum:ferrum@localhost:5432/ferrum_docs_test".into());
-    let db = Db::connect(DbConfig { url, max_connections: 20, ..Default::default() }).await.expect("connect");
-    sqlx::raw_sql("drop schema if exists public cascade; create schema public;").execute(&db.pool).await.expect("reset");
+    let db = Db::connect(DbConfig { url: url.clone(), max_connections: 20, ..Default::default() }).await.expect("connect");
+    sqlx::raw_sql("drop schema if exists vault cascade; drop schema if exists public cascade; create schema public;").execute(&db.pool).await.expect("reset");
+    ferrum_kernel::vault::open(&db, opener(&url), false).await.expect("the vault");
     let mut packages = ferrum_domain::packages().expect("platform packages");
     packages.extend(ferrum_app_drive::packages().expect("drive packages"));
     packages.extend(ferrum_app_docs::packages().expect("docs packages"));
     let catalog = Catalog::from_packages(packages).expect("catalog");
     let mut hooks = HookRegistry::default();
     ferrum_domain::register(&mut hooks);
-    ferrum_app_drive::register(&mut hooks);
+    hooks.app("drive", &[], ferrum_app_drive::register);
     ferrum_app_docs::register(&mut hooks);
     let k = Kernel::boot(db, catalog, hooks, KernelSettings::default(), None).await.expect("boot");
     k.set_file_store(Arc::new(MemStore::default()));
@@ -178,4 +179,14 @@ async fn scenario() {
     k.update(&carol, "DocsTemplate", from_doc, off, None).await.unwrap();
     let e = k.run_action(&bob, "DocsTemplate", from_doc, "create_document", json!({})).await.unwrap_err();
     assert!(e.to_string().contains("no longer in use"), "{e}");
+}
+
+/// What opens the test's vault: the database password of `url`, with Argon2id kept cheap for tests.
+fn opener(url: &str) -> ferrum_kernel::vault::Opener {
+    ferrum_kernel::vault::Opener {
+        database_url: url.to_string(),
+        file: "/nonexistent/root.key".into(),
+        kdf: ferrum_kernel::vault::Kdf { m_kib: 64, t: 1, p: 1 },
+        ..Default::default()
+    }
 }
