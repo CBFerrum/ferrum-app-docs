@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
+import { setTimeZone } from "@ferrum/client";
 import { getSchema } from "@tiptap/core";
 import * as Y from "yjs";
 import { documentExtensions } from "./schema";
 import { columnOf } from "./layout";
 import { cleanHref, headingByAnchor, targetOf } from "./links";
 import { LEGACY, PRESETS, cleanSetup, dims, formatLength, isUnset, paperFor, parseLength, presetOf, readSetup, unitFor, watchSetup, writeSetup } from "./page";
-import { boxContent, cssString, linesOf, printStyle } from "./print";
+import { boxContent, cssString, linesOf, printDate, printStyle } from "./print";
 import { readFormat } from "./compat";
 
 describe("the page setup", () => {
@@ -98,5 +99,18 @@ describe("links", () => {
 describe("the layout", () => {
   it("numbers columns by the distance along them", () => {
     expect([columnOf(0, 700), columnOf(600, 700), columnOf(700, 700), columnOf(1400.5, 700), columnOf(-5, 700)]).toEqual([0, 0, 1, 2, 0]);
+  });
+});
+
+describe("the printed date", () => {
+  it("is today on the workspace's clock, not the browser's", () => {
+    // 11:00 UTC on 5 Nov is already 6 Nov in Kiritimati (UTC+14), and still 5 Nov in any browser west of UTC+13.
+    setTimeZone("Pacific/Kiritimati");
+    try {
+      const at = new Date("2026-11-05T11:00:00Z");
+      expect(printDate("en-GB", at)).toBe(new Intl.DateTimeFormat("en-GB", { dateStyle: "long", timeZone: "Pacific/Kiritimati" }).format(at));
+    } finally {
+      setTimeZone(undefined);
+    }
   });
 });

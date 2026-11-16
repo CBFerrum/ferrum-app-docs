@@ -3,8 +3,8 @@ import { type DocItem, carriesFiles, changedFrom, isDocument, isFolder, narrow, 
 import { LIVE_DOC_TYPE } from "./livedocs";
 
 const item = (id: string, extra: Partial<DocItem> = {}): DocItem => ({ id, name: `${id}.fdoc`, kind: "file", content_type: LIVE_DOC_TYPE, owner: "ana@acme.test", modified_at: "2026-11-01T09:00:00Z", permission: "Edit", ...extra });
-// A Sunday afternoon in the person's own clock.
-const now = new Date(2026, 10, 1, 15, 0, 0);
+// A Sunday, the workspace's today.
+const today = "2026-11-01";
 const at = (day: number, hour = 9) => new Date(2026, 9, day, hour).toISOString();
 
 describe("Docs' lists", () => {
@@ -24,9 +24,9 @@ describe("Docs' lists", () => {
     expect(narrow(list, { owner: "me", changed: "any", me: undefined })).toHaveLength(3);
   });
 
-  it("narrow to what changed lately, by the person's days", () => {
+  it("narrow to what changed lately, by the workspace's days", () => {
     const list = [item("today", { modified_at: new Date(2026, 10, 1, 8).toISOString() }), item("yesterday", { modified_at: new Date(2026, 9, 31, 22).toISOString() }), item("week", { modified_at: at(26) }), item("old", { modified_at: at(5) })];
-    const ids = (changed: "any" | "today" | "7" | "30") => narrow(list, { owner: "any", changed, me: "x", now }).map((i) => i.id);
+    const ids = (changed: "any" | "today" | "7" | "30") => narrow(list, { owner: "any", changed, me: "x", today }).map((i) => i.id);
     expect(ids("today")).toEqual(["today"]);
     expect(ids("7")).toEqual(["today", "yesterday", "week"]);
     expect(ids("30")).toEqual(["today", "yesterday", "week", "old"]);
@@ -36,12 +36,12 @@ describe("Docs' lists", () => {
   it("keep folders however the list is narrowed, and order one without a time last", () => {
     const folder = item("f", { kind: "folder", content_type: null, owner: "ben@acme.test", modified_at: null as unknown as string });
     const list = [folder, item("old", { owner: "ben@acme.test", modified_at: at(5) })];
-    expect(narrow(list, { owner: "me", changed: "7", me: "ana@acme.test", now }).map((i) => i.id)).toEqual(["f"]);
+    expect(narrow(list, { owner: "me", changed: "7", me: "ana@acme.test", today }).map((i) => i.id)).toEqual(["f"]);
     expect(ordered([folder, item("new", { modified_at: at(20) }), list[1]!], "changed").map((i) => i.id)).toEqual(["new", "old", "f"]);
   });
 
   it("say the first day a choice covers, for Drive's search", () => {
-    expect([changedFrom("any", now), changedFrom("today", now), changedFrom("7", now), changedFrom("30", now)]).toEqual([undefined, "2026-11-01", "2026-10-26", "2026-10-03"]);
+    expect([changedFrom("any", today), changedFrom("today", today), changedFrom("7", today), changedFrom("30", today)]).toEqual([undefined, "2026-11-01", "2026-10-26", "2026-10-03"]);
   });
 
   it("keep the server's order unless asked for another", () => {

@@ -7,7 +7,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.8.1-2f5bea?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.8.2-2f5bea?style=flat-square)](CHANGELOG.md)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Ferrum platform](https://img.shields.io/badge/runs%20on-Ferrum-2f5bea?style=flat-square)](https://github.com/CBFerrum/Ferrum)
 [![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml)
@@ -354,6 +354,7 @@ Docs is compared with Google Docs, Word in Microsoft 365, Notion and ONLYOFFICE 
 
 ### ✅ Recently shipped
 
+- [x] **0.8.2**: Days on the workspace's clock (printing, the home page's "changed", date chips); unsaved changes under the offline policy's name alone.
 - [x] **0.8.1**: A lighter first page and tuned menus, icons and selection bars on narrow screens.
 - [x] **0.8.0**: Docs becomes a word processor: fonts, colours, tables, pictures, page setup, headers and footers, footnotes, contents, formatting suggestions, Word import and paste, find and replace, and shortcuts.
 - [x] **0.7.13**: The upgraded design system; an honest save indicator; a phone toolbar with 44-pixel controls.
@@ -460,7 +461,7 @@ CHANGELOG.md          what changed in each version
 
 ## 📜 Changelog
 
-Every release is described in [CHANGELOG.md](CHANGELOG.md). The latest is **0.8.1**; **0.8.0** made Docs a word processor.
+Every release is described in [CHANGELOG.md](CHANGELOG.md). The latest is **0.8.2**; **0.8.0** made Docs a word processor.
 
 ## 🤝 Contributing
 

@@ -8,7 +8,7 @@ import { type RefObject, useEffect, useRef, useState, useSyncExternalStore } fro
 import type * as Y from "yjs";
 import { type Layout, measure } from "./layout";
 import { type PageSetup, cleanSetup, readSetup, pageMap } from "./page";
-import { linesOf, printStyle } from "./print";
+import { linesOf, printDate, printStyle } from "./print";
 import { REGIONS } from "./regions";
 
 /** The page setup of a shared document, current. */
@@ -41,7 +41,7 @@ export function usePrintStyle(doc: Y.Doc, setup: PageSetup, title: string): () =
     document.head.append(style);
     build.current = () => {
       const regions = Object.fromEntries(REGIONS.map((r) => [r, linesOf(yXmlFragmentToProsemirrorJSON(doc.getXmlFragment(r)))])) as Record<(typeof REGIONS)[number], ReturnType<typeof linesOf>>;
-      style.textContent = printStyle(cleanSetup({ ...setup }), regions, { title, date: new Date().toLocaleDateString(locale(), { dateStyle: "long" }) });
+      style.textContent = printStyle(cleanSetup({ ...setup }), regions, { title, date: printDate(locale()) });
     };
     build.current();
     let timer: ReturnType<typeof setTimeout> | undefined;

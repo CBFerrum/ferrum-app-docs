@@ -3,7 +3,7 @@
 // from the `/` menu or Insert; the date is changed from the chip's small bar (ContextBars.tsx).
 
 import { Node, mergeAttributes } from "@tiptap/core";
-import { formatMoment, t } from "@ferrum/client";
+import { formatMoment, fromZonedInput, t, toZonedInput } from "@ferrum/client";
 import { suggestingRefuses } from "./suggest";
 
 /** A date as `YYYY-MM-DD` when it is a real one, else null. */
@@ -13,15 +13,15 @@ export function cleanDate(v: unknown): string | null {
   return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v ? null : v;
 }
 
-/** Today in the person's own time zone, as stored. */
+/** Today on the clock the page shows times on (the person's own zone, else the workspace's), as stored. */
 export function today(now = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  return toZonedInput(now.toISOString()).slice(0, 10);
 }
 
-/** The date as the reader says it ("12 November 2026", "١٢ نوفمبر ٢٠٢٦"). Noon, so no time zone moves the day. */
+/** The date as the reader says it ("12 November 2026", "١٢ نوفمبر ٢٠٢٦"): noon of that day on the clock it is shown on, so
+ *  no time zone moves the day. */
 export function dateText(date: string): string {
-  return formatMoment(new Date(`${date}T12:00:00`), { dateStyle: "long" });
+  return formatMoment(fromZonedInput(`${date}T12:00`), { dateStyle: "long" });
 }
 
 declare module "@tiptap/core" {

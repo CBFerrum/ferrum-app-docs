@@ -3,7 +3,7 @@
 // a browser.
 
 import { LIVE_DOC_TYPE } from "./livedocs";
-import { t } from "@ferrum/client";
+import { fromZonedInput, t, todayIso } from "@ferrum/client";
 
 /** A Drive item as the lists give it. */
 export interface DocItem {
@@ -61,24 +61,19 @@ export function pick<T extends { id: string }>(options: readonly T[], raw: strin
   return options.find((o) => o.id === raw)?.id ?? options[0]!.id;
 }
 
-/** The start of the day `back` days before `now`'s, in the person's own clock. */
-function dayStart(now: Date, back: number): Date {
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  d.setDate(d.getDate() - back);
-  return d;
-}
-
-/** The day a choice of "changed" starts on, as YYYY-MM-DD (what Drive's search takes); none for any time. */
-export function changedFrom(changed: Changed, now = new Date()): string | undefined {
+/** The day a choice of "changed" starts on, as YYYY-MM-DD (what Drive's search takes, counting the workspace's days);
+ *  none for any time. */
+export function changedFrom(changed: Changed, today = todayIso()): string | undefined {
   if (changed === "any") return undefined;
-  const d = dayStart(now, changed === "today" ? 0 : Number(changed) - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const back = changed === "today" ? 0 : Number(changed) - 1;
+  return new Date(Date.parse(`${today}T00:00:00Z`) - back * 86_400_000).toISOString().slice(0, 10);
 }
 
 /** The items who own, and when changed, the choices allow. Folders are ways in, not results: they stay. */
-export function narrow(items: DocItem[], o: { owner: Owner; changed: Changed; me: string | undefined; now?: Date }): DocItem[] {
+export function narrow(items: DocItem[], o: { owner: Owner; changed: Changed; me: string | undefined; today?: string }): DocItem[] {
   const me = o.me?.toLowerCase();
-  const since = o.changed === "any" ? null : dayStart(o.now ?? new Date(), o.changed === "today" ? 0 : Number(o.changed) - 1).getTime();
+  const from = changedFrom(o.changed, o.today);
+  const since = from ? Date.parse(fromZonedInput(`${from}T00:00`)!) : null;
   return items.filter((i) => {
     if (isFolder(i)) return true;
     if (o.owner !== "any" && me) {

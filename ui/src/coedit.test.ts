@@ -322,7 +322,7 @@ describe("documents edited together", () => {
 });
 
 describe("where unsaved changes wait", () => {
-  it("under the person's pending name, still reading what was kept before the policy", async () => {
+  it("under the person's pending name, and nowhere without one", async () => {
     const stores = new Map<string, Map<string, Uint8Array>>();
     const make = (database: string): Keeper => {
       const m = stores.get(database) ?? new Map<string, Uint8Array>();
@@ -333,15 +333,18 @@ describe("where unsaved changes wait", () => {
       offline: { allowed: false, until: null, hours: 72, key: "k1", person: "p1" },
     } as never);
     resetBootstrap();
-    make("ferrum-docs");
-    stores.get("ferrum-docs")!.set("doc|p1", new Uint8Array([1]));
     const keeper = browserKeeper(make)!;
-    expect(await keeper.load("doc|p1")).toEqual(new Uint8Array([1]));
+    expect(await keeper.load("doc|p1")).toBeNull();
     await keeper.save("doc|p1", new Uint8Array([2]));
+    expect([...stores.keys()]).toEqual(["ferrum.offline.test.docs.person-p1.unsaved"]);
     expect(stores.get("ferrum.offline.test.docs.person-p1.unsaved")!.get("doc|p1")).toEqual(new Uint8Array([2]));
     expect(await keeper.load("doc|p1")).toEqual(new Uint8Array([2]));
     await keeper.drop("doc|p1");
-    expect([...stores.values()].every((m) => !m.has("doc|p1"))).toBe(true);
+    expect(await keeper.load("doc|p1")).toBeNull();
+    // A page that names nobody (no lease) keeps nothing in the browser.
+    (globalThis as { __FERRUM_BOOTSTRAP__?: unknown }).__FERRUM_BOOTSTRAP__ = fakeBootstrap({ offline: null } as never);
+    resetBootstrap();
+    expect(browserKeeper(make)).toBeNull();
     delete (globalThis as { __FERRUM_BOOTSTRAP__?: unknown }).__FERRUM_BOOTSTRAP__;
     resetBootstrap();
   });
