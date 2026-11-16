@@ -81,30 +81,13 @@ function done(t: IDBTransaction): Promise<void> {
   });
 }
 
-/** Where unsaved changes were kept before the platform's offline policy (Ferrum docs/offline.md):
- *  read from still, until nobody comes back for them. */
-const LEGACY = "ferrum-docs";
-
-/** The browser's IndexedDB as a [`Keeper`]; null where there is none. Unsaved changes are work not
- *  sent yet, so they are kept for their person (under the policy's pending name, the workspace's
- *  and theirs), whatever the lease, until the server stores them. */
+/** The browser's IndexedDB as a [`Keeper`]; null where there is none, or no pending name for the person. Unsaved
+ *  changes are work not sent yet, so they are kept for their person (under the policy's pending name, the
+ *  workspace's and theirs: Ferrum docs/offline.md), whatever the lease, until the server stores them. */
 export function browserKeeper(make: (database: string) => Keeper = indexedKeeper): Keeper | null {
   if (make === indexedKeeper && typeof indexedDB === "undefined") return null;
-  const name = pendingName(offlineEnv(), "docs", "unsaved") ?? LEGACY;
-  const keepers = [make(name), ...(name === LEGACY ? [] : [make(LEGACY)])];
-  return {
-    async load(key) {
-      for (const k of keepers) {
-        const state = await k.load(key).catch(() => null);
-        if (state) return state;
-      }
-      return null;
-    },
-    save: (key, state) => keepers[0].save(key, state),
-    async drop(key) {
-      await Promise.all(keepers.map((k) => k.drop(key).catch(() => undefined)));
-    },
-  };
+  const name = pendingName(offlineEnv(), "docs", "unsaved");
+  return name ? make(name) : null;
 }
 
 /** One IndexedDB database as a [`Keeper`]. */

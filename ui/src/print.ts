@@ -6,6 +6,7 @@
 // What the box cannot say (a different style for each word of a line) is kept in the document and
 // exported to Word whole, but prints in one style per line.
 
+import { formatMoment } from "@ferrum/client";
 import { type Field, cleanField } from "./regions";
 import { type PageSetup, dims, inches } from "./page";
 import { cleanColor, cleanFontFamily, cleanFontSize, fontStack } from "./format";
@@ -111,6 +112,9 @@ export function boxes(side: "top" | "bottom", lines: Line[], ctx: Context): stri
   }
   return out.join("\n  ");
 }
+
+/** Today's date as a printed page's header or footer writes it, in `locale`, on the clock the page shows times on. */
+export const printDate = (locale: string, now = new Date()): string => formatMoment(now, { dateStyle: "long" }, locale);
 
 /** The whole `@page` style for a page setup and the lines of its regions (those not set are empty). */
 export function printStyle(setup: PageSetup, regions: Record<"header" | "footer" | "firstHeader" | "firstFooter", Line[]>, ctx: Context): string {
