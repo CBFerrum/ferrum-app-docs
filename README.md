@@ -14,7 +14,7 @@
 ![Rust](https://img.shields.io/badge/Rust-server-b7410e?style=flat-square&logo=rust)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-data-336791?style=flat-square&logo=postgresql&logoColor=white)
 ![React](https://img.shields.io/badge/React%20%2B%20TypeScript-interface-0ea5e9?style=flat-square&logo=react&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-3%20Rust%20%C2%B7%20191%20interface-16a34a?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-3%20Rust%20%C2%B7%20192%20interface-16a34a?style=flat-square)
 
 ### A word processor your team writes in together, live, on your own server.
 
@@ -38,13 +38,13 @@ Ferrum Docs is for teams that want what Google Docs or Word on the web give them
 
 | | |
 |---|---|
-| 📦 **Version** | 0.8.1 |
+| 📦 **Version** | 0.8.2 |
 | 🖥️ **Kind** | Its own interface at `/docs/`, with the editor at `/docs/d/{file}` |
 | ➕ **What it adds** | 1 entity (Document Template), 2 roles, 6 starting templates, 1 launcher app, a Create menu entry, an assistant that knows its pages |
 | 🧱 **Depends on** | Drive `>=0.7`. Docs is in Drive's Workspace family and installs with it |
 | 🤝 **Works with** | Drive (sharing, versions, trash, search), Sheets, Slides and PDF in the same family, any app that uses Drive's pick and share intents |
 | 🌍 **Languages** | English, Arabic, Hindi |
-| 🧪 **Tests** | 3 Rust test functions and 191 interface tests, counted from the source |
+| 🧪 **Tests** | 3 Rust test functions and 192 interface tests, counted from the source |
 | 📄 **Licence** | AGPL-3.0-only |
 
 ## 📸 Screenshots
