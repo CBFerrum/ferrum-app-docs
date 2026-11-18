@@ -1,6 +1,6 @@
 id: docs
 name: Docs
-version: 0.8.2
+version: 0.9.0
 publisher: cbferrum
 summary: "Documents people write together: a home for them, templates, search by what they say, and AI agents that draft and add to them"
 description: README.md
@@ -14,7 +14,7 @@ requires:
 # In Drive's family, Workspace (Ferrum docs/plan/apps-ui.md §11.5): Docs has an interface of its
 # own and draws Drive's navigation; it installs with Drive and goes before it.
 parent: drive
-platform: ">=0.3.2, <0.4"
+platform: ">=0.4.0, <0.5"
 packages: [docs]
 uninstall: ask
 ui:

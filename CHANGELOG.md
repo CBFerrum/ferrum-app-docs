@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.0
+
+Needs Ferrum 0.4.0 (apps' upkeep runs one workspace at a time, on whichever replica is free).
+
+- **Upkeep takes the workspace.** `maintenance(k, tenant)` is still empty (Drive keeps the documents); only its signature follows the platform's.
+
+No database or interface change.
+
 ## 0.8.2
 
 Needs the same platform as 0.8.1. No database change. Interface only, `ui/dist` rebuilt with Ferrum-Frontend `06bd1a2`.

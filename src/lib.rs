@@ -38,7 +38,7 @@ pub fn reports() -> Vec<Arc<dyn ReportSource>> {
 }
 
 /// Periodic upkeep: none (Drive keeps the documents).
-pub async fn maintenance(_k: &Kernel) -> Result<()> {
+pub async fn maintenance(_k: &Kernel, _tenant: uuid::Uuid) -> Result<()> {
     Ok(())
 }
 
