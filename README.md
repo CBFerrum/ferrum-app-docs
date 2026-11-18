@@ -7,7 +7,7 @@
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.8.2-2f5bea?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.9.0-2f5bea?style=flat-square)](CHANGELOG.md)
 [![Licence: AGPL-3.0](https://img.shields.io/badge/licence-AGPL--3.0-blue?style=flat-square)](LICENSE)
 [![Ferrum platform](https://img.shields.io/badge/runs%20on-Ferrum-2f5bea?style=flat-square)](https://github.com/CBFerrum/Ferrum)
 [![CI](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml/badge.svg)](https://github.com/CBFerrum/ferrum-app-docs/actions/workflows/ci.yml)
@@ -38,7 +38,7 @@ Ferrum Docs is for teams that want what Google Docs or Word on the web give them
 
 | | |
 |---|---|
-| 📦 **Version** | 0.8.2 |
+| 📦 **Version** | 0.9.0 |
 | 🖥️ **Kind** | Its own interface at `/docs/`, with the editor at `/docs/d/{file}` |
 | ➕ **What it adds** | 1 entity (Document Template), 2 roles, 6 starting templates, 1 launcher app, a Create menu entry, an assistant that knows its pages |
 | 🧱 **Depends on** | Drive `>=0.7`. Docs is in Drive's Workspace family and installs with it |
@@ -354,6 +354,7 @@ Docs is compared with Google Docs, Word in Microsoft 365, Notion and ONLYOFFICE 
 
 ### ✅ Recently shipped
 
+- [x] **0.9.0**: Upkeep runs one workspace at a time, on whichever replica is free.
 - [x] **0.8.2**: Days on the workspace's clock (printing, the home page's "changed", date chips); unsaved changes under the offline policy's name alone.
 - [x] **0.8.1**: A lighter first page and tuned menus, icons and selection bars on narrow screens.
 - [x] **0.8.0**: Docs becomes a word processor: fonts, colours, tables, pictures, page setup, headers and footers, footnotes, contents, formatting suggestions, Word import and paste, find and replace, and shortcuts.
@@ -392,7 +393,7 @@ Docs is compared with Google Docs, Word in Microsoft 365, Notion and ONLYOFFICE 
 
 ## 🚀 Install
 
-Docs is a native app compiled into the official Ferrum server image. A workspace administrator installs it from **Apps** (`/store/`). It belongs to Drive's Workspace family: it requires Drive `>=0.7`, installs with it and goes before it. Self-hosters who build their own image enable the `docs` feature of the server. It needs Ferrum platform `>=0.3.2, <0.4`.
+Docs is a native app compiled into the official Ferrum server image. A workspace administrator installs it from **Apps** (`/store/`). It belongs to Drive's Workspace family: it requires Drive `>=0.7`, installs with it and goes before it. Self-hosters who build their own image enable the `docs` feature of the server. It needs Ferrum platform `>=0.4.0, <0.5`.
 
 **First steps**
 
@@ -461,7 +462,7 @@ CHANGELOG.md          what changed in each version
 
 ## 📜 Changelog
 
-Every release is described in [CHANGELOG.md](CHANGELOG.md). The latest is **0.8.2**; **0.8.0** made Docs a word processor.
+Every release is described in [CHANGELOG.md](CHANGELOG.md). The latest is **0.9.0**; **0.8.0** made Docs a word processor.
 
 ## 🤝 Contributing
 
